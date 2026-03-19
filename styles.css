@@ -1,5 +1,5 @@
 /* ========== STYLES.CSS ========== */
-/* ОРИГИНАЛЬНЫЕ ЦВЕТА MAX с шириной сообщений как в Telegram */
+/* ОРИГИНАЛЬНЫЕ ЦВЕТА MAX + ФОРМА ТЕЛЕФОНА */
 
 :root {
     /* Оригинальные цвета MAX (из вашего бота) */
@@ -16,10 +16,10 @@
     --max-blue: #248bf2;              /* Синий акцент MAX */
     --max-blue-hover: #1a7ad9;        /* Синий при наведении */
     
-    /* ЕДИНСТВЕННОЕ ИЗМЕНЕНИЕ - ширина сообщений как в Telegram */
-    --message-max-width: 85%;         /* В MAX было 60%, теперь 85% */
+    /* Ширина сообщений как в Telegram */
+    --message-max-width: 85%;
     
-    /* Остальные параметры (можно оставить как есть) */
+    /* Остальные параметры */
     --message-min-width: 80px;
     --message-bubble-radius: 18px;
     --message-padding-vertical: 8px;
@@ -43,6 +43,10 @@
     --text-lg: 18px;
     --text-xl: 22px;
     --text-xxl: 28px;
+    
+    /* Размеры телефона */
+    --phone-max-width: 400px;         /* Максимальная ширина как у телефона */
+    --phone-min-width: 320px;         /* Минимальная ширина */
 }
 
 * {
@@ -56,6 +60,7 @@ html, body {
     height: 100%;
     width: 100%;
     overflow: hidden;
+    background-color: #000000;  /* Чёрный фон вокруг телефона */
 }
 
 body {
@@ -63,13 +68,50 @@ body {
     color: var(--max-text);
     font-size: var(--text-md);
     line-height: 1.4;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
 }
 
+/* ===== КОНТЕЙНЕР ТЕЛЕФОНА ===== */
+.phone-container {
+    width: 100%;
+    max-width: var(--phone-max-width);
+    min-width: var(--phone-min-width);
+    height: 100vh;
+    max-height: 800px;  /* Ограничиваем высоту как у телефона */
+    background-color: var(--max-bg);
+    border-radius: 40px;  /* Скруглённые углы как у телефона */
+    overflow: hidden;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    margin: 20px auto;
+    position: relative;
+}
+
+/* Эмуляция "динамика" телефона (опционально) */
+.phone-container::before {
+    content: '';
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 120px;
+    height: 25px;
+    background-color: #000000;
+    border-radius: 0 0 20px 20px;
+    z-index: 1000;
+    display: none;  /* Скрыто по умолчанию, включите если нужно */
+}
+
+/* Сам чат внутри телефона */
 .app {
     display: flex;
-    height: 100vh;
-    width: 100vw;
+    height: 100%;
+    width: 100%;
     overflow: hidden;
+    background-color: var(--max-bg);
+    border-radius: inherit;
 }
 
 /* Левая панель */
@@ -79,19 +121,43 @@ body {
     border-right: 1px solid var(--max-border);
     display: flex;
     flex-direction: column;
-    height: 100vh;
+    height: 100%;
     flex-shrink: 0;
 }
 
+/* На мобильных устройствах (реальных телефонах) - левая панель выезжает */
 @media (max-width: 768px) {
+    .phone-container {
+        max-width: 100%;
+        max-height: 100vh;
+        border-radius: 0;
+        margin: 0;
+    }
+    
     .chats-panel {
         position: absolute;
         left: -320px;
         z-index: 100;
         transition: left 0.15s ease;
+        height: 100%;
     }
     .chats-panel.visible {
         left: 0;
+    }
+    
+    .phone-container::before {
+        display: none;  /* Убираем "динамик" на реальных телефонах */
+    }
+}
+
+/* На больших экранах (мониторах) - показываем как телефон */
+@media (min-width: 769px) {
+    body {
+        background-color: #111111;  /* Тёмный фон вокруг телефона */
+    }
+    
+    .phone-container {
+        border: 2px solid #333;  /* Рамка как у телефона */
     }
 }
 
@@ -286,7 +352,7 @@ body {
     flex: 1;
     display: flex;
     flex-direction: column;
-    height: 100vh;
+    height: 100%;
     background-color: transparent;
     overflow: hidden;
 }
@@ -413,7 +479,7 @@ body {
 
 .message-bubble {
     background-color: var(--max-message-bot);
-    border-radius: 18px;
+    border-radius: 18px 18px 18px 4px;  /* Скругление как в Telegram */
     padding: 8px 12px;
     word-wrap: break-word;
     min-width: 80px;
@@ -421,6 +487,7 @@ body {
 
 .user-message .message-bubble {
     background-color: var(--max-message-user);
+    border-radius: 18px 18px 4px 18px;  /* Скругление как в Telegram */
 }
 
 .message-text {
@@ -542,26 +609,30 @@ body {
     to { opacity: 1; transform: translateY(0); }
 }
 
-/* Адаптация */
-@media (max-width: 768px) {
-    .chats-panel {
-        position: absolute;
-        left: -320px;
-        z-index: 100;
+/* Адаптация для очень маленьких экранов */
+@media (max-width: 480px) {
+    .message {
+        max-width: 90%;
     }
-    .chats-panel.visible {
-        left: 0;
+    
+    .phone-container {
+        min-width: 100%;
+        border-radius: 0;
     }
 }
 
-@media (max-width: 480px) {
-    .chats-panel {
-        width: 280px;
-        left: -280px;
+/* Поддержка безопасной зоны на iPhone */
+@supports (padding: max(0px)) {
+    .chat-header {
+        padding-top: max(var(--spacing-sm), env(safe-area-inset-top));
+        padding-left: max(var(--spacing-lg), env(safe-area-inset-left));
+        padding-right: max(var(--spacing-lg), env(safe-area-inset-right));
     }
     
-    .message {
-        max-width: 90%;
+    .input-panel {
+        padding-bottom: max(var(--spacing-sm), env(safe-area-inset-bottom));
+        padding-left: max(var(--spacing-lg), env(safe-area-inset-left));
+        padding-right: max(var(--spacing-lg), env(safe-area-inset-right));
     }
 }
 

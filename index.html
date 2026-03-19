@@ -18,6 +18,40 @@
 </head>
 <body>
     <script>
+        // ===== ПОЛУЧЕНИЕ USER_ID ОТ MAX =====
+        (function() {
+            // Получаем параметры из URL (MAX передаёт их автоматически)
+            const urlParams = new URLSearchParams(window.location.search);
+            const userId = urlParams.get('user_id');
+            const chatId = urlParams.get('chat_id');
+            const accessToken = urlParams.get('access_token');
+            
+            // Сохраняем глобально для использования во всех скриптах
+            window.maxContext = {
+                user_id: userId,
+                chat_id: chatId,
+                access_token: accessToken
+            };
+            
+            if (userId) {
+                console.log('👤 Пользователь MAX ID:', userId);
+                // Можно сразу запросить данные пользователя
+                if (window.api) {
+                    window.api.getUserStatus(userId).then(data => {
+                        console.log('📊 Данные пользователя:', data);
+                        // Обновим имя в приветствии, если нужно
+                        const nameElement = document.getElementById('userNamePlaceholder');
+                        if (nameElement && data.user_name) {
+                            nameElement.textContent = data.user_name;
+                        }
+                    });
+                }
+            } else {
+                console.warn('⚠️ user_id не получен от MAX, используем тестовый режим');
+                window.maxContext = { user_id: 12345, test_mode: true };
+            }
+        })();
+
         // ===== ПОЛУЧЕНИЕ ТЕМЫ ОТ MAX =====
         (function() {
             // Функция применения темы

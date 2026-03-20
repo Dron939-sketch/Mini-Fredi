@@ -1,5 +1,5 @@
 /* ========== STYLES.CSS ========== */
-/* ПОЛНАЯ ПОДДЕРЖКА ЭМОДЗИ + ВСЕ ФИЧИ + ВНУТРЕННЯЯ ПОДСВЕТКА */
+/* ПОЛНАЯ ПОДДЕРЖКА ЭМОДЗИ + ВСЕ ФИЧИ + ВНУТРЕННЯЯ ПОДСВЕТКА + СТИЛИ ТЕСТА */
 
 /* 1. ГЛОБАЛЬНАЯ ПОДДЕРЖКА ЭМОДЗИ - В САМОМ НАЧАЛЕ */
 * {
@@ -1846,6 +1846,193 @@ body {
         var(--max-border-light) 20%,
         var(--max-border-light) 80%,
         transparent 100%);
+}
+
+/* ========== СТИЛИ ДЛЯ ТЕСТА КАК В TELEGRAM ========== */
+
+/* Контейнер для сообщений теста */
+.test-messages-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow-y: auto;
+    padding: 12px 8px;
+    background: transparent;
+    scroll-behavior: smooth;
+}
+
+/* Список сообщений теста */
+.test-messages-list {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    min-height: min-content;
+    gap: 6px;
+}
+
+/* Стили для скроллбара теста */
+.test-messages-container::-webkit-scrollbar {
+    width: 4px;
+}
+
+.test-messages-container::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.test-messages-container::-webkit-scrollbar-thumb {
+    background: var(--max-text-secondary);
+    border-radius: 4px;
+}
+
+/* ===== КНОПКИ ТЕСТА КАК В TELEGRAM ===== */
+.message-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 10px;
+    margin-bottom: 4px;
+}
+
+/* Кнопка с эффектом стекла */
+.message-button {
+    background: rgba(128, 128, 128, 0.2);  /* Полупрозрачный серый */
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 24px;  /* Скругленные края как в Telegram */
+    padding: 12px 18px;
+    font-size: 15px;
+    font-weight: 500;
+    text-align: left;
+    color: var(--max-text);
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.2, 0.9, 0.3, 1.1);
+    width: 100%;
+    position: relative;
+    overflow: hidden;
+    font-family: inherit;
+    line-height: 1.4;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Эффект при наведении */
+.message-button:hover {
+    background: rgba(128, 128, 128, 0.3);
+    border-color: rgba(255, 255, 255, 0.2);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* Эффект при нажатии */
+.message-button:active {
+    transform: translateY(1px);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Анимация пульсации при нажатии */
+.message-button::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 5px;
+    height: 5px;
+    background: rgba(255, 255, 255, 0.3);
+    opacity: 0;
+    border-radius: 100%;
+    transform: scale(1, 1) translate(-50%);
+    transform-origin: 50% 50%;
+}
+
+.message-button:focus:not(:active)::after {
+    animation: buttonRipple 0.3s ease-out;
+}
+
+@keyframes buttonRipple {
+    0% {
+        transform: scale(0, 0);
+        opacity: 0.5;
+    }
+    100% {
+        transform: scale(20, 20);
+        opacity: 0;
+    }
+}
+
+/* Первая кнопка в списке */
+.message-buttons .message-button:first-child {
+    margin-top: 2px;
+}
+
+/* Последняя кнопка в списке */
+.message-buttons .message-button:last-child {
+    margin-bottom: 2px;
+}
+
+/* Для светлой темы */
+@media (prefers-color-scheme: light) {
+    .message-button {
+        background: rgba(200, 200, 200, 0.3);
+        border-color: rgba(0, 0, 0, 0.1);
+        color: #000000;
+    }
+    
+    .message-button:hover {
+        background: rgba(180, 180, 180, 0.4);
+        border-color: rgba(0, 0, 0, 0.15);
+    }
+}
+
+/* Анимация появления сообщений */
+@keyframes messageAppear {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Индикатор печати для теста */
+.test-typing-indicator {
+    display: flex;
+    gap: 4px;
+    padding: 12px 16px;
+    background: var(--max-message-bot);
+    border: 1px solid var(--max-border-light);
+    border-radius: 18px;
+    border-top-left-radius: 4px;
+    width: fit-content;
+    margin-bottom: 6px;
+}
+
+.test-typing-indicator span {
+    width: 6px;
+    height: 6px;
+    background: var(--max-text-secondary);
+    border-radius: 50%;
+    animation: testTyping 1.4s infinite;
+}
+
+.test-typing-indicator span:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.test-typing-indicator span:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+@keyframes testTyping {
+    0%, 60%, 100% {
+        transform: translateY(0);
+        opacity: 0.6;
+    }
+    30% {
+        transform: translateY(-6px);
+        opacity: 1;
+    }
 }
 
 .hidden {

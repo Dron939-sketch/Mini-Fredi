@@ -398,6 +398,180 @@
         </div>
     </template>
 
+    <!-- ========== ШАБЛОНЫ ПОСЛЕ ТЕСТА ========== -->
+
+    <!-- Экран 8: Финальный профиль (результаты теста) -->
+    <template id="finalProfileScreen">
+        <div class="final-profile-container">
+            <div class="final-profile-content">
+                <div class="profile-header">
+                    <div class="profile-emoji">🧠</div>
+                    <h2 class="profile-title">ВАШ ПСИХОЛОГИЧЕСКИЙ ПОРТРЕТ</h2>
+                </div>
+                
+                <div class="profile-text" id="profileText">
+                    <!-- Здесь будет сгенерированный текст профиля -->
+                </div>
+                
+                <div class="profile-buttons">
+                    <button class="onboarding-btn primary" id="psychologistThoughtBtn">🧠 МЫСЛИ ПСИХОЛОГА</button>
+                    <div class="button-row">
+                        <button class="onboarding-btn secondary" id="askQuestionBtn">🎤 ХОЧУ ВЫСКАЗАТЬСЯ</button>
+                        <button class="onboarding-btn secondary" id="chooseGoalBtn">🎯 ВЫБРАТЬ ЦЕЛЬ</button>
+                    </div>
+                    <button class="onboarding-btn secondary" id="chooseModeBtn">⚙️ ВЫБРАТЬ РЕЖИМ</button>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- Экран 9: Задать вопрос -->
+    <template id="askQuestionScreen">
+        <div class="ask-question-container">
+            <div class="ask-question-content">
+                <h2 class="ask-question-title">✏️ ЗАДАВАЙТЕ ЛЮБОЙ ВОПРОС</h2>
+                
+                <div class="ask-question-text">
+                    Если мой создатель знает ответ на него — значит и я вам что-то отвечу 😉
+                </div>
+                
+                <div class="voice-hint">
+                    🎤 <b>Можно просто отправить голосовое сообщение</b> — я внимательно выслушаю.
+                </div>
+                
+                <div class="question-input-area">
+                    <div class="input-group">
+                        <input type="text" id="questionInput" class="question-input" placeholder="Напишите ваш вопрос...">
+                        <button id="sendQuestionBtn" class="question-submit">➡️</button>
+                    </div>
+                    <div class="voice-input-hint">
+                        🎙️ Или нажмите на микрофон в углу экрана
+                    </div>
+                </div>
+                
+                <div class="question-back">
+                    <button class="onboarding-btn secondary" id="backToProfileBtn">◀️ НАЗАД</button>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- Экран 10: Выбор цели -->
+    <template id="chooseGoalScreen">
+        <div class="choose-goal-container">
+            <div class="choose-goal-content">
+                <h2 class="choose-goal-title">🎯 ВЫБЕРИТЕ ЦЕЛЬ</h2>
+                
+                <div class="goal-description" id="goalDescription">
+                    <span id="goalUserName">друг</span>, я проанализировал твой профиль и подобрал цели, которые сейчас наиболее актуальны.
+                </div>
+                
+                <div class="profile-badge" id="profileBadge">
+                    <span class="badge-label">Твой профиль:</span>
+                    <span class="badge-code" id="profileCode">СБ-4_ТФ-4_УБ-4_ЧВ-4</span>
+                </div>
+                
+                <div class="mode-badge" id="modeBadge">
+                    <span class="badge-label">Режим:</span>
+                    <span class="badge-code" id="modeCode">🔮 КОУЧ</span>
+                </div>
+                
+                <div class="goals-list" id="goalsList">
+                    <!-- Цели будут подставлены динамически -->
+                </div>
+                
+                <div class="custom-goal">
+                    <button class="onboarding-btn secondary" id="customGoalBtn">✏️ Сформулирую сам</button>
+                </div>
+                
+                <div class="goal-back">
+                    <button class="onboarding-btn secondary" id="backToProfileFromGoalBtn">◀️ НАЗАД</button>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- Экран 11: Выбор режима -->
+    <template id="chooseModeScreen">
+        <div class="choose-mode-container">
+            <div class="choose-mode-content">
+                <h2 class="choose-mode-title">⚙️ ВЫБЕРИТЕ РЕЖИМ</h2>
+                
+                <div class="mode-description">
+                    Слушай, я могу быть разным. Хочешь конкретики — давай определимся, в каком качестве я сегодня буду полезен.
+                </div>
+                
+                <div class="profile-badge" id="modeProfileBadge">
+                    <span class="badge-label">Твой профиль:</span>
+                    <span class="badge-code" id="modeProfileCode">СБ-4_ТФ-4_УБ-4_ЧВ-4</span>
+                </div>
+                
+                <div class="mode-cards" id="modeCards">
+                    <div class="mode-card" data-mode="coach">
+                        <div class="mode-emoji">🔮</div>
+                        <div class="mode-name">КОУЧ</div>
+                        <div class="mode-desc">Если хочешь, чтобы я помог тебе самому найти решения.</div>
+                        <div class="mode-what">Задавать открытые вопросы, отражать твои мысли, направлять.</div>
+                        <div class="mode-get">• Жить станет легче<br>• Появится больше радости от простых вещей<br>• Начнёшь замечать возможности вместо проблем</div>
+                    </div>
+                    
+                    <div class="mode-card" data-mode="psychologist">
+                        <div class="mode-emoji">🧠</div>
+                        <div class="mode-name">ПСИХОЛОГ</div>
+                        <div class="mode-desc">Если хочешь копнуть вглубь, разобраться с причинами, а не следствиями.</div>
+                        <div class="mode-what">Исследовать твои глубинные паттерны, защитные механизмы, прошлый опыт.</div>
+                        <div class="mode-get">• Перестанешь реагировать на триггеры<br>• Исчезнут старые сценарии<br>• Поймёшь, откуда растут ноги у твоих страхов</div>
+                    </div>
+                    
+                    <div class="mode-card" data-mode="trainer">
+                        <div class="mode-emoji">⚡</div>
+                        <div class="mode-name">ТРЕНЕР</div>
+                        <div class="mode-desc">Если нужны чёткие инструменты, навыки и результат.</div>
+                        <div class="mode-what">Формировать твои поведенческие и мыслительные навыки.</div>
+                        <div class="mode-get">• Научишься чётко формулировать мысли<br>• Освоишь алгоритмы ведения переговоров<br>• Сформируешь полезные привычки</div>
+                    </div>
+                </div>
+                
+                <div class="mode-back">
+                    <button class="onboarding-btn secondary" id="backToProfileFromModeBtn">◀️ НАЗАД</button>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- Экран 12: Мысли психолога (загрузка) -->
+    <template id="psychologistThoughtLoadingScreen">
+        <div class="thought-loading-container">
+            <div class="thought-loading-content">
+                <div class="loading-spinner">🧠</div>
+                <div class="loading-text">Анализирую через конфайнмент-модель...</div>
+                <div class="loading-time">Это займёт около 15-20 секунд</div>
+                <div class="loading-dots">...</div>
+            </div>
+        </div>
+    </template>
+
+    <!-- Экран 13: Мысли психолога (результат) -->
+    <template id="psychologistThoughtResultScreen">
+        <div class="thought-result-container">
+            <div class="thought-result-content">
+                <div class="thought-header">
+                    <div class="thought-emoji">🧠</div>
+                    <h2 class="thought-title">МЫСЛИ ПСИХОЛОГА</h2>
+                </div>
+                
+                <div class="thought-text" id="thoughtText">
+                    <!-- Здесь будет сгенерированная мысль -->
+                </div>
+                
+                <div class="thought-buttons">
+                    <button class="onboarding-btn secondary" id="backToProfileFromThoughtBtn">◀️ НАЗАД</button>
+                    <button class="onboarding-btn secondary" id="askQuestionFromThoughtBtn">🎤 ЗАДАТЬ ВОПРОС</button>
+                </div>
+            </div>
+        </div>
+    </template>
+
     <!-- Подключение скриптов с правильными путями (БЕЗ /miniapp/) -->
     <link rel="stylesheet" href="styles.css">
     <script src="api.js"></script>
@@ -405,5 +579,375 @@
     <script src="context.js"></script>
     <script src="test.js"></script>
     <script src="script.js"></script>
+    
+    <!-- Дополнительные стили для новых экранов -->
+    <style>
+        /* Стили для финального профиля */
+        .final-profile-container {
+            padding: 20px;
+            overflow-y: auto;
+            height: 100%;
+        }
+        
+        .profile-header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        
+        .profile-emoji {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+        
+        .profile-title {
+            font-size: 20px;
+            letter-spacing: 0.1em;
+            color: var(--max-blue);
+        }
+        
+        .profile-text {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 24px;
+            font-size: 14px;
+            line-height: 1.6;
+            color: var(--max-text);
+        }
+        
+        .profile-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .profile-buttons .button-row {
+            display: flex;
+            gap: 12px;
+            margin: 0;
+        }
+        
+        .profile-buttons .button-row .onboarding-btn {
+            flex: 1;
+            margin: 0;
+        }
+        
+        /* Стили для экрана вопроса */
+        .ask-question-container {
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            min-height: 100%;
+        }
+        
+        .ask-question-title {
+            font-size: 22px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .ask-question-text {
+            text-align: center;
+            color: var(--max-text-secondary);
+            margin-bottom: 16px;
+        }
+        
+        .voice-hint {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 12px;
+            background: var(--glass-bg);
+            border-radius: 30px;
+            font-size: 14px;
+        }
+        
+        .question-input-area {
+            margin-bottom: 30px;
+        }
+        
+        .question-input {
+            flex: 1;
+            padding: 14px 18px;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 30px;
+            color: var(--max-text);
+            font-size: 16px;
+            outline: none;
+        }
+        
+        .question-input:focus {
+            border-color: var(--max-blue);
+        }
+        
+        .question-submit {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: var(--max-blue);
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+        }
+        
+        .voice-input-hint {
+            text-align: center;
+            margin-top: 12px;
+            font-size: 12px;
+            color: var(--max-text-secondary);
+        }
+        
+        /* Стили для выбора целей */
+        .choose-goal-container {
+            padding: 20px;
+            overflow-y: auto;
+            height: 100%;
+        }
+        
+        .choose-goal-title {
+            font-size: 22px;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+        
+        .goal-description {
+            text-align: center;
+            margin-bottom: 20px;
+            color: var(--max-text-secondary);
+        }
+        
+        .profile-badge, .mode-badge {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 30px;
+            padding: 8px 16px;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .badge-label {
+            font-size: 13px;
+            color: var(--max-text-secondary);
+        }
+        
+        .badge-code {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--max-blue);
+        }
+        
+        .goals-list {
+            margin: 20px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .goal-item {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .goal-item:hover {
+            border-color: var(--max-blue);
+            transform: translateX(4px);
+        }
+        
+        .goal-name {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        
+        .goal-time {
+            font-size: 12px;
+            color: var(--max-text-secondary);
+        }
+        
+        .custom-goal {
+            margin: 16px 0;
+        }
+        
+        /* Стили для выбора режима */
+        .choose-mode-container {
+            padding: 20px;
+            overflow-y: auto;
+            height: 100%;
+        }
+        
+        .choose-mode-title {
+            font-size: 22px;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+        
+        .mode-description {
+            text-align: center;
+            margin-bottom: 20px;
+            color: var(--max-text-secondary);
+        }
+        
+        .mode-cards {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .mode-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .mode-card:hover {
+            border-color: var(--max-blue);
+            transform: translateY(-2px);
+        }
+        
+        .mode-card.selected {
+            border-color: var(--max-blue);
+            background: rgba(36, 139, 242, 0.1);
+        }
+        
+        .mode-emoji {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+        
+        .mode-name {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .mode-desc {
+            font-size: 14px;
+            color: var(--max-text-secondary);
+            margin-bottom: 12px;
+        }
+        
+        .mode-what {
+            font-size: 12px;
+            color: var(--max-text-secondary);
+            margin-bottom: 12px;
+            padding: 8px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+        }
+        
+        .mode-get {
+            font-size: 12px;
+            color: var(--max-text);
+            line-height: 1.5;
+        }
+        
+        /* Стили для мыслей психолога */
+        .thought-loading-container {
+            padding: 40px 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100%;
+            text-align: center;
+        }
+        
+        .loading-spinner {
+            font-size: 48px;
+            animation: pulse 1s infinite;
+        }
+        
+        .loading-text {
+            font-size: 18px;
+            margin: 20px 0 8px;
+        }
+        
+        .loading-time {
+            font-size: 14px;
+            color: var(--max-text-secondary);
+            margin-bottom: 8px;
+        }
+        
+        .loading-dots {
+            font-size: 24px;
+            letter-spacing: 4px;
+            animation: dots 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 0.5; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.1); }
+        }
+        
+        @keyframes dots {
+            0% { content: "."; }
+            33% { content: ".."; }
+            66% { content: "..."; }
+        }
+        
+        .thought-result-container {
+            padding: 20px;
+            overflow-y: auto;
+            height: 100%;
+        }
+        
+        .thought-header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        
+        .thought-emoji {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+        
+        .thought-title {
+            font-size: 20px;
+            letter-spacing: 0.1em;
+            color: var(--max-blue);
+        }
+        
+        .thought-text {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 24px;
+            font-size: 14px;
+            line-height: 1.6;
+            color: var(--max-text);
+        }
+        
+        .thought-buttons {
+            display: flex;
+            gap: 12px;
+        }
+        
+        .thought-buttons .onboarding-btn {
+            flex: 1;
+        }
+        
+        @media (max-width: 480px) {
+            .profile-buttons .button-row {
+                flex-direction: column;
+            }
+            
+            .thought-buttons {
+                flex-direction: column;
+            }
+        }
+    </style>
 </body>
 </html>

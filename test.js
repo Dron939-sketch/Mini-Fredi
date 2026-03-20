@@ -1,5 +1,5 @@
 // ========== test.js ==========
-// ПОШАГОВЫЙ ТЕСТ КАК В TELEGRAM
+// ТЕСТ КАК В TELEGRAM - ВОПРОС И КНОПКИ ВМЕСТЕ
 
 const Test = {
     // Текущее состояние
@@ -230,8 +230,8 @@ const Test = {
                 console.log('📂 Загружен прогресс теста, этап:', this.currentStage, 'вопрос:', this.currentQuestionIndex);
             } catch (e) {
                 console.warn('❌ Ошибка загрузки прогресса:', e);
+            }
         }
-    }
     },
     
     // Сохранение прогресса
@@ -253,7 +253,19 @@ const Test = {
         this.answers = {};
         this.saveProgress();
         this.showTestScreen();
-        this.sendNextQuestion();
+        
+        // Показываем приветственное сообщение
+        setTimeout(() => {
+            this.addBotMessageWithButtons(
+                '🧠 Начинаем тест из 5 этапов. Я буду задавать вопросы, а ты выбирай ответы.',
+                []
+            );
+            
+            // Через секунду показываем первый вопрос
+            setTimeout(() => {
+                this.sendNextQuestion();
+            }, 1000);
+        }, 100);
     },
     
     // Показать экран теста (контейнер для сообщений)
@@ -261,22 +273,105 @@ const Test = {
         const container = document.getElementById('screenContainer');
         
         container.innerHTML = `
-            <div class="test-messages-container">
-                <div class="test-header-message">
-                    <div class="message bot-message">
-                        <div class="message-bubble">
-                            <div class="message-text">🧠 Начинаем тест из 5 этапов. Я буду задавать вопросы, а ты выбирай ответы.</div>
-                            <div class="message-time">только что</div>
-                        </div>
-                    </div>
-                </div>
+            <div class="test-messages-container" id="testMessagesContainer">
                 <div class="test-messages-list" id="testMessagesList"></div>
-                <div class="test-options-area" id="testOptionsArea"></div>
             </div>
         `;
         
         // Добавляем стили
         this.addTestStyles();
+    },
+    
+    // Добавить сообщение бота с кнопками
+    addBotMessageWithButtons(text, options, callback) {
+        const messagesList = document.getElementById('testMessagesList');
+        if (!messagesList) return;
+        
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'message bot-message';
+        
+        let buttonsHtml = '';
+        if (options && options.length > 0) {
+            buttonsHtml = '<div class="message-buttons">';
+            options.forEach((option, index) => {
+                buttonsHtml += `
+                    <button class="message-button" data-option-index="${index}">
+                        ${option}
+                    </button>
+                `;
+            });
+            buttonsHtml += '</div>';
+        }
+        
+        messageDiv.innerHTML = `
+            <div class="message-bubble">
+                <div class="message-text">${text}</div>
+                ${buttonsHtml}
+                <div class="message-time">только что</div>
+            </div>
+        `;
+        
+        messagesList.appendChild(messageDiv);
+        
+        // Добавляем обработчики для кнопок
+        if (options && options.length > 0 && callback) {
+            const buttons = messageDiv.querySelectorAll('.message-button');
+            buttons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const index = parseInt(btn.dataset.optionIndex);
+                    
+                    // Добавляем сообщение пользователя
+                    this.addUserMessage(options[index]);
+                    
+                    // Удаляем кнопки из сообщения бота
+                    const buttonsContainer = messageDiv.querySelector('.message-buttons');
+                    if (buttonsContainer) {
+                        buttonsContainer.remove();
+                    }
+                    
+                    // Вызываем callback
+                    callback(index);
+                });
+            });
+        }
+        
+        // Прокрутка вниз
+        setTimeout(() => {
+            const container = document.getElementById('testMessagesContainer');
+            if (container) {
+                container.scrollTop = container.scrollHeight;
+            }
+        }, 50);
+        
+        return messageDiv;
+    },
+    
+    // Добавить сообщение пользователя
+    addUserMessage(text) {
+        const messagesList = document.getElementById('testMessagesList');
+        if (!messagesList) return;
+        
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'message user-message';
+        messageDiv.innerHTML = `
+            <div class="message-bubble">
+                <div class="message-text">${text}</div>
+                <div class="message-time">только что</div>
+                <div class="message-status">
+                    <span class="status-icon sent"></span>
+                </div>
+            </div>
+        `;
+        
+        messagesList.appendChild(messageDiv);
+        
+        // Прокрутка вниз
+        setTimeout(() => {
+            const container = document.getElementById('testMessagesContainer');
+            if (container) {
+                container.scrollTop = container.scrollHeight;
+            }
+        }, 50);
     },
     
     // Отправить следующий вопрос
@@ -304,113 +399,27 @@ const Test = {
         
         const question = questions[this.currentQuestionIndex];
         
-        // Показываем вопрос как сообщение бота
-        this.addBotMessage(question.text);
-        
-        // Показываем варианты ответов как кнопки
-        this.showOptions(question.options, (selectedIndex) => {
-            this.handleAnswer(stage.id, question.id, selectedIndex, question.options[selectedIndex]);
-        });
+        // Показываем вопрос с кнопками
+        this.addBotMessageWithButtons(
+            question.text,
+            question.options,
+            (selectedIndex) => {
+                this.handleAnswer(stage.id, question.id, selectedIndex, question.options[selectedIndex]);
+            }
+        );
     },
     
     // Отправить сообщение о начале этапа
     sendStageMessage() {
         const stage = this.stages[this.currentStage];
         const stageMessage = `${stage.name}\n${stage.description}`;
-        this.addBotMessage(stageMessage);
+        
+        this.addBotMessageWithButtons(stageMessage, []);
         
         // Небольшая пауза перед первым вопросом этапа
         setTimeout(() => {
             this.sendNextQuestion();
         }, 1000);
-    },
-    
-    // Добавить сообщение бота
-    addBotMessage(text) {
-        const messagesList = document.getElementById('testMessagesList');
-        if (!messagesList) return;
-        
-        const messageDiv = document.createElement('div');
-        messageDiv.className = 'message bot-message';
-        messageDiv.innerHTML = `
-            <div class="message-bubble">
-                <div class="message-text">${text}</div>
-                <div class="message-time">только что</div>
-            </div>
-        `;
-        
-        messagesList.appendChild(messageDiv);
-        
-        // Прокрутка вниз
-        setTimeout(() => {
-            const container = document.querySelector('.test-messages-container');
-            if (container) {
-                container.scrollTop = container.scrollHeight;
-            }
-        }, 50);
-    },
-    
-    // Добавить сообщение пользователя
-    addUserMessage(text) {
-        const messagesList = document.getElementById('testMessagesList');
-        if (!messagesList) return;
-        
-        const messageDiv = document.createElement('div');
-        messageDiv.className = 'message user-message';
-        messageDiv.innerHTML = `
-            <div class="message-bubble">
-                <div class="message-text">${text}</div>
-                <div class="message-time">только что</div>
-                <div class="message-status">
-                    <span class="status-icon sent"></span>
-                </div>
-            </div>
-        `;
-        
-        messagesList.appendChild(messageDiv);
-        
-        // Прокрутка вниз
-        setTimeout(() => {
-            const container = document.querySelector('.test-messages-container');
-            if (container) {
-                container.scrollTop = container.scrollHeight;
-            }
-        }, 50);
-    },
-    
-    // Показать варианты ответов как кнопки
-    showOptions(options, callback) {
-        const optionsArea = document.getElementById('testOptionsArea');
-        if (!optionsArea) return;
-        
-        let html = '<div class="test-options">';
-        options.forEach((option, index) => {
-            html += `
-                <button class="test-option-btn" data-option-index="${index}">
-                    ${option}
-                </button>
-            `;
-        });
-        html += '</div>';
-        
-        optionsArea.innerHTML = html;
-        
-        // Добавляем обработчики
-        const optionBtns = optionsArea.querySelectorAll('.test-option-btn');
-        optionBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                const index = parseInt(btn.dataset.optionIndex);
-                
-                // Добавляем сообщение пользователя
-                this.addUserMessage(options[index]);
-                
-                // Убираем кнопки
-                optionsArea.innerHTML = '';
-                
-                // Вызываем callback
-                callback(index);
-            });
-        });
     },
     
     // Обработка ответа
@@ -642,35 +651,23 @@ const Test = {
                 position: relative;
             }
             
-            .test-header-message {
-                margin-bottom: 16px;
-            }
-            
             .test-messages-list {
                 flex: 1;
                 display: flex;
                 flex-direction: column;
                 gap: 8px;
-                margin-bottom: 16px;
             }
             
-            .test-options-area {
-                padding: 16px 0;
-                background: transparent;
-                position: sticky;
-                bottom: 0;
-                z-index: 10;
-            }
-            
-            .test-options {
+            .message-buttons {
                 display: flex;
                 flex-direction: column;
-                gap: 8px;
+                gap: 6px;
+                margin-top: 12px;
             }
             
-            .test-option-btn {
+            .message-button {
                 width: 100%;
-                padding: 14px 16px;
+                padding: 12px 16px;
                 background: var(--glass-bg);
                 border: 1px solid var(--glass-border);
                 border-radius: 30px;
@@ -682,13 +679,13 @@ const Test = {
                 backdrop-filter: blur(8px);
             }
             
-            .test-option-btn:hover {
+            .message-button:hover {
                 background: var(--max-hover);
                 border-color: var(--max-blue);
                 transform: translateY(-1px);
             }
             
-            .test-option-btn:active {
+            .message-button:active {
                 transform: translateY(0);
             }
             
@@ -812,7 +809,7 @@ const Test = {
                 animation: slideIn 0.3s ease;
             }
             
-            .test-option-btn {
+            .message-button {
                 animation: slideIn 0.3s ease;
             }
         `;
@@ -821,7 +818,7 @@ const Test = {
     },
     
     addResultsStyles() {
-        this.addTestStyles(); // Используем те же стили
+        this.addTestStyles();
     }
 };
 

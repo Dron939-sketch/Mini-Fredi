@@ -1,9 +1,10 @@
 // ========== test.js ==========
-// ПОЛНЫЙ ТЕСТ ИЗ 5 ЭТАПОВ
+// ПОШАГОВЫЙ ТЕСТ КАК В TELEGRAM
 
 const Test = {
     // Текущее состояние
     currentStage: 0,
+    currentQuestionIndex: 0,
     userId: null,
     answers: {},
     
@@ -11,17 +12,17 @@ const Test = {
     stages: [
         { 
             id: 'perception', 
-            name: '🧠 ЭТАП 1/5: КОНФИГУРАЦИЯ ВОСПРИЯТИЯ',
+            name: '🧠 ЭТАП 1/5: ВОСПРИЯТИЕ',
             description: 'Линза, через которую вы смотрите на мир'
         },
         { 
             id: 'thinking', 
-            name: '🧠 ЭТАП 2/5: КОНФИГУРАЦИЯ МЫШЛЕНИЯ',
+            name: '🧠 ЭТАП 2/5: МЫШЛЕНИЕ',
             description: 'Как вы обрабатываете информацию'
         },
         { 
             id: 'behavior', 
-            name: '🧠 ЭТАП 3/5: КОНФИГУРАЦИЯ ПОВЕДЕНИЯ',
+            name: '🧠 ЭТАП 3/5: ПОВЕДЕНИЕ',
             description: 'Ваши автоматические реакции'
         },
         { 
@@ -197,7 +198,7 @@ const Test = {
                 options: [
                     '🏰 Я сам по себе, мне никто не нужен',
                     '🤝 Я не могу без близких отношений',
-                    '🎭 Я по-разному ведусь с разными людьми',
+                    '🎭 Я по-разному веду себя с разными людьми',
                     '🌊 Я плыву по течению'
                 ]
             }
@@ -208,6 +209,7 @@ const Test = {
     init(userId) {
         this.userId = userId || App?.userId || 'test_user';
         this.currentStage = 0;
+        this.currentQuestionIndex = 0;
         this.answers = {};
         
         // Загружаем сохраненные ответы если есть
@@ -223,18 +225,20 @@ const Test = {
             try {
                 const data = JSON.parse(saved);
                 this.currentStage = data.currentStage || 0;
+                this.currentQuestionIndex = data.currentQuestionIndex || 0;
                 this.answers = data.answers || {};
-                console.log('📂 Загружен прогресс теста, этап:', this.currentStage);
+                console.log('📂 Загружен прогресс теста, этап:', this.currentStage, 'вопрос:', this.currentQuestionIndex);
             } catch (e) {
                 console.warn('❌ Ошибка загрузки прогресса:', e);
-            }
         }
+    }
     },
     
     // Сохранение прогресса
     saveProgress() {
         const data = {
             currentStage: this.currentStage,
+            currentQuestionIndex: this.currentQuestionIndex,
             answers: this.answers,
             updatedAt: new Date().toISOString()
         };
@@ -245,13 +249,38 @@ const Test = {
     // Начать тест
     start() {
         this.currentStage = 0;
+        this.currentQuestionIndex = 0;
         this.answers = {};
         this.saveProgress();
-        this.showCurrentStage();
+        this.showTestScreen();
+        this.sendNextQuestion();
     },
     
-    // Показать текущий этап
-    showCurrentStage() {
+    // Показать экран теста (контейнер для сообщений)
+    showTestScreen() {
+        const container = document.getElementById('screenContainer');
+        
+        container.innerHTML = `
+            <div class="test-messages-container">
+                <div class="test-header-message">
+                    <div class="message bot-message">
+                        <div class="message-bubble">
+                            <div class="message-text">🧠 Начинаем тест из 5 этапов. Я буду задавать вопросы, а ты выбирай ответы.</div>
+                            <div class="message-time">только что</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="test-messages-list" id="testMessagesList"></div>
+                <div class="test-options-area" id="testOptionsArea"></div>
+            </div>
+        `;
+        
+        // Добавляем стили
+        this.addTestStyles();
+    },
+    
+    // Отправить следующий вопрос
+    sendNextQuestion() {
         if (this.currentStage >= this.stages.length) {
             this.showResults();
             return;
@@ -260,161 +289,145 @@ const Test = {
         const stage = this.stages[this.currentStage];
         const questions = this.questions[stage.id];
         
-        this.renderStage(stage, questions);
+        if (this.currentQuestionIndex >= questions.length) {
+            // Переходим к следующему этапу
+            this.currentStage++;
+            this.currentQuestionIndex = 0;
+            
+            if (this.currentStage < this.stages.length) {
+                this.sendStageMessage();
+            } else {
+                this.showResults();
+            }
+            return;
+        }
+        
+        const question = questions[this.currentQuestionIndex];
+        
+        // Показываем вопрос как сообщение бота
+        this.addBotMessage(question.text);
+        
+        // Показываем варианты ответов как кнопки
+        this.showOptions(question.options, (selectedIndex) => {
+            this.handleAnswer(stage.id, question.id, selectedIndex, question.options[selectedIndex]);
+        });
     },
     
-    // Отрисовка этапа
-    renderStage(stage, questions) {
-        const container = document.getElementById('screenContainer');
-        if (!container) return;
+    // Отправить сообщение о начале этапа
+    sendStageMessage() {
+        const stage = this.stages[this.currentStage];
+        const stageMessage = `${stage.name}\n${stage.description}`;
+        this.addBotMessage(stageMessage);
         
-        // Создаем HTML
-        let html = `
-            <div class="test-container">
-                <div class="test-header">
-                    <div class="test-progress">
-                        <div class="progress-bar">
-                            <div class="progress-fill" style="width: ${(this.currentStage / this.stages.length) * 100}%"></div>
-                        </div>
-                        <div class="progress-text">${stage.name}</div>
-                        <div class="stage-desc">${stage.description}</div>
-                    </div>
-                </div>
-                
-                <div class="test-questions">
+        // Небольшая пауза перед первым вопросом этапа
+        setTimeout(() => {
+            this.sendNextQuestion();
+        }, 1000);
+    },
+    
+    // Добавить сообщение бота
+    addBotMessage(text) {
+        const messagesList = document.getElementById('testMessagesList');
+        if (!messagesList) return;
+        
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'message bot-message';
+        messageDiv.innerHTML = `
+            <div class="message-bubble">
+                <div class="message-text">${text}</div>
+                <div class="message-time">только что</div>
+            </div>
         `;
         
-        // Добавляем вопросы
-        questions.forEach((q, index) => {
-            const savedAnswer = this.answers[`${stage.id}_${q.id}`];
-            
-            html += `
-                <div class="test-question" data-question-id="${q.id}">
-                    <div class="question-text">${index + 1}. ${q.text}</div>
-                    <div class="question-options">
-            `;
-            
-            q.options.forEach((option, optIndex) => {
-                const isSelected = savedAnswer === optIndex;
-                html += `
-                    <button class="question-option ${isSelected ? 'selected' : ''}" 
-                            data-option-index="${optIndex}"
-                            onclick="Test.selectAnswer('${stage.id}', '${q.id}', ${optIndex})">
-                        ${option}
-                    </button>
-                `;
-            });
-            
-            html += `
-                    </div>
-                </div>
-            `;
-        });
+        messagesList.appendChild(messageDiv);
         
-        html += `
-                </div>
-                
-                <div class="test-footer">
-                    <button class="test-btn secondary" onclick="Test.prevStage()" ${this.currentStage === 0 ? 'disabled' : ''}>
-                        ◀️ Назад
-                    </button>
-                    <button class="test-btn primary" onclick="Test.nextStage()" id="nextStageBtn">
-                        ${this.currentStage === this.stages.length - 1 ? '✅ Завершить' : '➡️ Далее'}
-                    </button>
+        // Прокрутка вниз
+        setTimeout(() => {
+            const container = document.querySelector('.test-messages-container');
+            if (container) {
+                container.scrollTop = container.scrollHeight;
+            }
+        }, 50);
+    },
+    
+    // Добавить сообщение пользователя
+    addUserMessage(text) {
+        const messagesList = document.getElementById('testMessagesList');
+        if (!messagesList) return;
+        
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'message user-message';
+        messageDiv.innerHTML = `
+            <div class="message-bubble">
+                <div class="message-text">${text}</div>
+                <div class="message-time">только что</div>
+                <div class="message-status">
+                    <span class="status-icon sent"></span>
                 </div>
             </div>
         `;
         
-        container.innerHTML = html;
+        messagesList.appendChild(messageDiv);
         
-        // Добавляем стили если их нет
-        this.addTestStyles();
-        
-        // Прокрутка вверх
-        container.scrollTop = 0;
+        // Прокрутка вниз
+        setTimeout(() => {
+            const container = document.querySelector('.test-messages-container');
+            if (container) {
+                container.scrollTop = container.scrollHeight;
+            }
+        }, 50);
     },
     
-    // Выбор ответа
-    selectAnswer(stageId, questionId, optionIndex) {
+    // Показать варианты ответов как кнопки
+    showOptions(options, callback) {
+        const optionsArea = document.getElementById('testOptionsArea');
+        if (!optionsArea) return;
+        
+        let html = '<div class="test-options">';
+        options.forEach((option, index) => {
+            html += `
+                <button class="test-option-btn" data-option-index="${index}">
+                    ${option}
+                </button>
+            `;
+        });
+        html += '</div>';
+        
+        optionsArea.innerHTML = html;
+        
+        // Добавляем обработчики
+        const optionBtns = optionsArea.querySelectorAll('.test-option-btn');
+        optionBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const index = parseInt(btn.dataset.optionIndex);
+                
+                // Добавляем сообщение пользователя
+                this.addUserMessage(options[index]);
+                
+                // Убираем кнопки
+                optionsArea.innerHTML = '';
+                
+                // Вызываем callback
+                callback(index);
+            });
+        });
+    },
+    
+    // Обработка ответа
+    handleAnswer(stageId, questionId, optionIndex, optionText) {
         const answerKey = `${stageId}_${questionId}`;
         this.answers[answerKey] = optionIndex;
+        
+        // Сохраняем прогресс
         this.saveProgress();
         
-        // Визуальное обновление
-        const questionEl = document.querySelector(`[data-question-id="${questionId}"]`);
-        if (questionEl) {
-            const options = questionEl.querySelectorAll('.question-option');
-            options.forEach((opt, idx) => {
-                if (idx === optionIndex) {
-                    opt.classList.add('selected');
-                } else {
-                    opt.classList.remove('selected');
-                }
-            });
-        }
+        // Переходим к следующему вопросу
+        this.currentQuestionIndex++;
         
-        // Проверяем все ли ответы на этапе
-        this.checkStageComplete();
-    },
-    
-    // Проверка завершенности этапа
-    checkStageComplete() {
-        const stage = this.stages[this.currentStage];
-        const questions = this.questions[stage.id];
-        
-        let allAnswered = true;
-        questions.forEach(q => {
-            if (this.answers[`${stage.id}_${q.id}`] === undefined) {
-                allAnswered = false;
-            }
-        });
-        
-        const nextBtn = document.getElementById('nextStageBtn');
-        if (nextBtn) {
-            if (allAnswered) {
-                nextBtn.disabled = false;
-                nextBtn.classList.add('enabled');
-            } else {
-                nextBtn.disabled = true;
-                nextBtn.classList.remove('enabled');
-            }
-        }
-    },
-    
-    // Следующий этап
-    nextStage() {
-        // Проверяем все ли ответы на текущем этапе
-        const stage = this.stages[this.currentStage];
-        const questions = this.questions[stage.id];
-        
-        let allAnswered = true;
-        questions.forEach(q => {
-            if (this.answers[`${stage.id}_${q.id}`] === undefined) {
-                allAnswered = false;
-            }
-        });
-        
-        if (!allAnswered) {
-            alert('⚠️ Пожалуйста, ответьте на все вопросы перед переходом');
-            return;
-        }
-        
-        if (this.currentStage < this.stages.length - 1) {
-            this.currentStage++;
-            this.saveProgress();
-            this.showCurrentStage();
-        } else {
-            this.showResults();
-        }
-    },
-    
-    // Предыдущий этап
-    prevStage() {
-        if (this.currentStage > 0) {
-            this.currentStage--;
-            this.saveProgress();
-            this.showCurrentStage();
-        }
+        // Небольшая пауза перед следующим вопросом
+        setTimeout(() => {
+            this.sendNextQuestion();
+        }, 800);
     },
     
     // Показать результаты
@@ -517,10 +530,6 @@ const Test = {
                     <p class="profile-type">${results.profile}</p>
                 </div>
                 
-                <div class="results-radar">
-                    <canvas id="radarChart" width="300" height="300"></canvas>
-                </div>
-                
                 <div class="results-dimensions">
                     <div class="dimension-item">
                         <div class="dimension-name">Восприятие</div>
@@ -599,77 +608,6 @@ const Test = {
         
         // Добавляем стили
         this.addResultsStyles();
-        
-        // Рисуем график
-        setTimeout(() => this.drawRadarChart(results), 100);
-    },
-    
-    // Рисование графика
-    drawRadarChart(results) {
-        const canvas = document.getElementById('radarChart');
-        if (!canvas) return;
-        
-        const ctx = canvas.getContext('2d');
-        const centerX = 150;
-        const centerY = 150;
-        const radius = 120;
-        
-        // Очищаем canvas
-        ctx.clearRect(0, 0, 300, 300);
-        
-        // Рисуем оси
-        ctx.strokeStyle = 'rgba(255,255,255,0.1)';
-        ctx.lineWidth = 1;
-        
-        for (let i = 0; i < 5; i++) {
-            const angle = (i * 72 - 90) * Math.PI / 180;
-            const x = centerX + radius * Math.cos(angle);
-            const y = centerY + radius * Math.sin(angle);
-            
-            ctx.beginPath();
-            ctx.moveTo(centerX, centerY);
-            ctx.lineTo(x, y);
-            ctx.stroke();
-        }
-        
-        // Рисуем окружности
-        for (let r = 30; r <= radius; r += 30) {
-            ctx.beginPath();
-            ctx.arc(centerX, centerY, r, 0, 2 * Math.PI);
-            ctx.strokeStyle = 'rgba(255,255,255,0.1)';
-            ctx.stroke();
-        }
-        
-        // Рисуем профиль
-        const values = [
-            results.perception / 100,
-            results.thinking / 100,
-            results.behavior / 100,
-            results.growth / 100,
-            results.deep / 100
-        ];
-        
-        ctx.beginPath();
-        ctx.fillStyle = 'rgba(36, 139, 242, 0.3)';
-        ctx.strokeStyle = '#248bf2';
-        ctx.lineWidth = 2;
-        
-        for (let i = 0; i < 5; i++) {
-            const angle = (i * 72 - 90) * Math.PI / 180;
-            const r = radius * values[i];
-            const x = centerX + r * Math.cos(angle);
-            const y = centerY + r * Math.sin(angle);
-            
-            if (i === 0) {
-                ctx.moveTo(x, y);
-            } else {
-                ctx.lineTo(x, y);
-            }
-        }
-        
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
     },
     
     // Выбор режима общения
@@ -695,73 +633,45 @@ const Test = {
         const style = document.createElement('style');
         style.id = 'testStyles';
         style.textContent = `
-            .test-container {
+            .test-messages-container {
                 display: flex;
                 flex-direction: column;
                 height: 100%;
-                padding: 16px;
-            }
-            
-            .test-header {
-                margin-bottom: 24px;
-            }
-            
-            .progress-bar {
-                width: 100%;
-                height: 6px;
-                background: var(--glass-bg);
-                border-radius: 3px;
-                margin-bottom: 12px;
-                overflow: hidden;
-            }
-            
-            .progress-fill {
-                height: 100%;
-                background: linear-gradient(90deg, var(--max-blue), #5a9eff);
-                border-radius: 3px;
-                transition: width 0.3s;
-            }
-            
-            .progress-text {
-                font-size: 16px;
-                font-weight: 600;
-                margin-bottom: 4px;
-            }
-            
-            .stage-desc {
-                font-size: 14px;
-                color: var(--max-text-secondary);
-            }
-            
-            .test-questions {
-                flex: 1;
                 overflow-y: auto;
-                margin-bottom: 20px;
-            }
-            
-            .test-question {
-                margin-bottom: 24px;
                 padding: 16px;
-                background: var(--glass-bg);
-                border: 1px solid var(--glass-border);
-                border-radius: 16px;
+                position: relative;
             }
             
-            .question-text {
-                font-size: 16px;
-                font-weight: 500;
-                margin-bottom: 12px;
+            .test-header-message {
+                margin-bottom: 16px;
             }
             
-            .question-options {
+            .test-messages-list {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+                margin-bottom: 16px;
+            }
+            
+            .test-options-area {
+                padding: 16px 0;
+                background: transparent;
+                position: sticky;
+                bottom: 0;
+                z-index: 10;
+            }
+            
+            .test-options {
                 display: flex;
                 flex-direction: column;
                 gap: 8px;
             }
             
-            .question-option {
-                padding: 12px 16px;
-                background: transparent;
+            .test-option-btn {
+                width: 100%;
+                padding: 14px 16px;
+                background: var(--glass-bg);
                 border: 1px solid var(--glass-border);
                 border-radius: 30px;
                 color: var(--max-text);
@@ -769,69 +679,24 @@ const Test = {
                 text-align: left;
                 cursor: pointer;
                 transition: all 0.2s;
+                backdrop-filter: blur(8px);
             }
             
-            .question-option:hover {
+            .test-option-btn:hover {
                 background: var(--max-hover);
                 border-color: var(--max-blue);
+                transform: translateY(-1px);
             }
             
-            .question-option.selected {
-                background: var(--max-blue);
-                border-color: var(--max-blue);
-                color: white;
-            }
-            
-            .test-footer {
-                display: flex;
-                gap: 12px;
-                padding: 16px 0;
-            }
-            
-            .test-btn {
-                flex: 1;
-                padding: 14px;
-                border-radius: 30px;
-                font-size: 16px;
-                font-weight: 600;
-                cursor: pointer;
-                transition: all 0.2s;
-                border: none;
-            }
-            
-            .test-btn.primary {
-                background: linear-gradient(135deg, var(--max-blue), #5a9eff);
-                color: white;
-            }
-            
-            .test-btn.primary:disabled {
-                opacity: 0.3;
-                cursor: not-allowed;
-            }
-            
-            .test-btn.secondary {
-                background: transparent;
-                color: var(--max-text);
-                border: 1px solid var(--glass-border);
-            }
-            
-            .test-btn.secondary:disabled {
-                opacity: 0.3;
-                cursor: not-allowed;
-            }
-            
-            .test-btn:hover:not(:disabled) {
-                transform: scale(1.02);
-            }
-            
-            .test-btn:active:not(:disabled) {
-                transform: scale(0.98);
+            .test-option-btn:active {
+                transform: translateY(0);
             }
             
             /* Стили для результатов */
             .results-container {
                 padding: 20px;
                 overflow-y: auto;
+                height: 100%;
             }
             
             .results-header {
@@ -849,12 +714,6 @@ const Test = {
                 color: var(--max-blue);
                 font-weight: 600;
                 margin-top: 8px;
-            }
-            
-            .results-radar {
-                display: flex;
-                justify-content: center;
-                margin: 20px 0;
             }
             
             .results-dimensions {
@@ -935,6 +794,26 @@ const Test = {
             
             .results-chat {
                 margin-top: 20px;
+            }
+            
+            /* Анимации */
+            @keyframes slideIn {
+                from {
+                    opacity: 0;
+                    transform: translateY(20px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+            
+            .message {
+                animation: slideIn 0.3s ease;
+            }
+            
+            .test-option-btn {
+                animation: slideIn 0.3s ease;
             }
         `;
         

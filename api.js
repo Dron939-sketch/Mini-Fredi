@@ -2,6 +2,7 @@
 // ПОЛНАЯ ВЕРСИЯ С РЕАЛЬНЫМИ ВЫЗОВАМИ API
 // ВКЛЮЧАЕТ ВСЕ ЭНДПОИНТЫ ДЛЯ ТЕСТА И ИНТЕРПРЕТАЦИИ
 // АДАПТИРОВАН ДЛЯ БЭКЕНДА НА RENDER
+// ДОБАВЛЕН: getSmartQuestions
 
 // URL вашего бэкенда на Render
 const API_BASE = 'https://max-bot-1-ywpz.onrender.com';
@@ -571,6 +572,34 @@ const api = {
                 { id: 'psychologist', name: 'ПСИХОЛОГ', emoji: '🧠', description: 'Исследовать глубинные паттерны, защитные механизмы.' },
                 { id: 'trainer', name: 'ТРЕНЕР', emoji: '⚡', description: 'Формировать поведенческие навыки, давать инструменты.' }
             ];
+        }
+    },
+    
+    /**
+     * 🔥 НОВЫЙ МЕТОД: Получает умные вопросы для пользователя
+     * @param {number|string} userId - ID пользователя
+     * @returns {Promise<Object>} Объект с вопросами
+     */
+    async getSmartQuestions(userId) {
+        try {
+            const response = await fetch(`${API_BASE}/api/smart-questions?user_id=${userId}`);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return await response.json();
+        } catch (error) {
+            console.error('❌ Ошибка получения умных вопросов:', error);
+            // Возвращаем локальные вопросы по умолчанию
+            return {
+                success: false,
+                questions: [
+                    'Как перестать бояться конфликтов?',
+                    'Как увеличить доход без новых вложений?',
+                    'С чего начать изменения?',
+                    'Почему я злюсь внутри, но молчу?',
+                    'Как защищать границы без агрессии?'
+                ]
+            };
         }
     },
     

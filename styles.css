@@ -1,5 +1,5 @@
 /* ========== STYLES.CSS ========== */
-/* ПОЛНАЯ ПОДДЕРЖКА ЭМОДЗИ + ВСЕ ФИЧИ + ВНУТРЕННЯЯ ПОДСВЕТКА + СТИЛИ ТЕСТА */
+/* ПОЛНАЯ ПОДДЕРЖКА ЭМОДЗИ + ВСЕ ФИЧИ + ВНУТРЕННЯЯ ПОДСВЕТКА + СТИЛИ ТЕСТА + ЭКРАНЫ ПОСЛЕ ТЕСТА */
 
 /* 1. ГЛОБАЛЬНАЯ ПОДДЕРЖКА ЭМОДЗИ - В САМОМ НАЧАЛЕ */
 * {
@@ -1714,6 +1714,538 @@ body {
     margin: var(--spacing-lg) auto 0 auto;
 }
 
+/* ========== ДОПОЛНИТЕЛЬНЫЕ СТИЛИ ДЛЯ ЭКРАНОВ ПОСЛЕ ТЕСТА ========== */
+
+/* 1. СТИЛИ ДЛЯ ФИНАЛЬНОГО ПРОФИЛЯ */
+.final-profile-container {
+    padding: 20px;
+    overflow-y: auto;
+    height: 100%;
+    animation: fadeIn 0.3s ease;
+}
+
+.final-profile-content {
+    max-width: 100%;
+}
+
+.profile-header {
+    text-align: center;
+    margin-bottom: 24px;
+}
+
+.profile-emoji {
+    font-size: 48px;
+    margin-bottom: 12px;
+    display: inline-block;
+    animation: pulse 2s infinite;
+}
+
+.profile-title {
+    font-size: 20px;
+    letter-spacing: 0.1em;
+    color: var(--max-blue);
+    margin: 0;
+}
+
+.profile-text {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 20px;
+    padding: 20px;
+    margin-bottom: 24px;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--max-text);
+}
+
+.profile-section {
+    margin-bottom: 20px;
+}
+
+.profile-section h3 {
+    font-size: 18px;
+    margin-bottom: 12px;
+    color: var(--max-blue);
+}
+
+.profile-section h4 {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: var(--max-text);
+}
+
+.profile-section p {
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--max-text-secondary);
+}
+
+.profile-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.profile-buttons .button-row {
+    display: flex;
+    gap: 12px;
+    margin: 0;
+}
+
+.profile-buttons .button-row .onboarding-btn {
+    flex: 1;
+    margin: 0;
+}
+
+/* 2. СТИЛИ ДЛЯ ЭКРАНА ВОПРОСА */
+.ask-question-container {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 100%;
+}
+
+.ask-question-content {
+    max-width: 100%;
+}
+
+.ask-question-title {
+    font-size: 22px;
+    margin-bottom: 20px;
+    text-align: center;
+    color: var(--max-text);
+}
+
+.ask-question-text {
+    text-align: center;
+    color: var(--max-text-secondary);
+    margin-bottom: 16px;
+}
+
+.voice-hint {
+    text-align: center;
+    margin-bottom: 30px;
+    padding: 12px;
+    background: var(--glass-bg);
+    border-radius: 30px;
+    font-size: 14px;
+}
+
+.question-input-area {
+    margin-bottom: 30px;
+}
+
+.input-group {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.question-input {
+    flex: 1;
+    padding: 14px 18px;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 30px;
+    color: var(--max-text);
+    font-size: 16px;
+    outline: none;
+}
+
+.question-input:focus {
+    border-color: var(--max-blue);
+}
+
+.question-submit {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: var(--max-blue);
+    border: none;
+    color: white;
+    font-size: 20px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.question-submit:hover {
+    background: var(--max-blue-hover);
+    transform: scale(1.05);
+}
+
+.voice-input-hint {
+    text-align: center;
+    margin-top: 12px;
+    font-size: 12px;
+    color: var(--max-text-secondary);
+}
+
+.question-back {
+    text-align: center;
+    margin-top: 20px;
+}
+
+/* 3. СТИЛИ ДЛЯ ВЫБОРА ЦЕЛЕЙ */
+.choose-goal-container {
+    padding: 20px;
+    overflow-y: auto;
+    height: 100%;
+}
+
+.choose-goal-content {
+    max-width: 100%;
+}
+
+.choose-goal-title {
+    font-size: 22px;
+    margin-bottom: 16px;
+    text-align: center;
+    color: var(--max-text);
+}
+
+.goal-description {
+    text-align: center;
+    margin-bottom: 20px;
+    color: var(--max-text-secondary);
+    font-size: 14px;
+}
+
+.profile-badge, .mode-badge {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 30px;
+    padding: 8px 16px;
+    margin-bottom: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.badge-label {
+    font-size: 13px;
+    color: var(--max-text-secondary);
+}
+
+.badge-code {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--max-blue);
+}
+
+.goals-list {
+    margin: 20px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.goal-item {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 20px;
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.goal-item:hover {
+    border-color: var(--max-blue);
+    transform: translateX(4px);
+    background: rgba(36, 139, 242, 0.05);
+}
+
+.goal-name {
+    font-weight: 600;
+    margin-bottom: 4px;
+    font-size: 16px;
+}
+
+.goal-time {
+    font-size: 12px;
+    color: var(--max-text-secondary);
+    margin-top: 4px;
+}
+
+.goal-difficulty {
+    font-size: 11px;
+    margin-top: 6px;
+    color: var(--max-text-secondary);
+}
+
+.custom-goal {
+    margin: 16px 0;
+}
+
+.goal-back {
+    text-align: center;
+    margin-top: 16px;
+}
+
+/* 4. СТИЛИ ДЛЯ ВЫБОРА РЕЖИМА */
+.choose-mode-container {
+    padding: 20px;
+    overflow-y: auto;
+    height: 100%;
+}
+
+.choose-mode-content {
+    max-width: 100%;
+}
+
+.choose-mode-title {
+    font-size: 22px;
+    margin-bottom: 16px;
+    text-align: center;
+    color: var(--max-text);
+}
+
+.mode-description {
+    text-align: center;
+    margin-bottom: 20px;
+    color: var(--max-text-secondary);
+    font-size: 14px;
+}
+
+.mode-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin: 20px 0;
+}
+
+.mode-card {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 20px;
+    padding: 20px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.mode-card:hover {
+    border-color: var(--max-blue);
+    transform: translateY(-2px);
+    background: rgba(36, 139, 242, 0.05);
+}
+
+.mode-card.selected {
+    border-color: var(--max-blue);
+    background: rgba(36, 139, 242, 0.1);
+}
+
+.mode-emoji {
+    font-size: 32px;
+    margin-bottom: 8px;
+}
+
+.mode-name {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.mode-desc {
+    font-size: 14px;
+    color: var(--max-text-secondary);
+    margin-bottom: 12px;
+}
+
+.mode-what {
+    font-size: 12px;
+    color: var(--max-text-secondary);
+    margin-bottom: 12px;
+    padding: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+}
+
+.mode-get {
+    font-size: 12px;
+    color: var(--max-text);
+    line-height: 1.5;
+}
+
+.mode-back {
+    text-align: center;
+    margin-top: 20px;
+}
+
+/* 5. СТИЛИ ДЛЯ МЫСЛЕЙ ПСИХОЛОГА */
+.thought-loading-container {
+    padding: 40px 20px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 100%;
+    text-align: center;
+}
+
+.thought-loading-content {
+    text-align: center;
+}
+
+.loading-spinner {
+    font-size: 48px;
+    animation: pulse 1s infinite;
+}
+
+.loading-text {
+    font-size: 18px;
+    margin: 20px 0 8px;
+    color: var(--max-text);
+}
+
+.loading-time {
+    font-size: 14px;
+    color: var(--max-text-secondary);
+    margin-bottom: 8px;
+}
+
+.loading-dots {
+    font-size: 24px;
+    letter-spacing: 4px;
+    animation: dots 1.5s infinite;
+}
+
+@keyframes dots {
+    0%, 20% { content: "."; }
+    40%, 60% { content: ".."; }
+    80%, 100% { content: "..."; }
+}
+
+.thought-result-container {
+    padding: 20px;
+    overflow-y: auto;
+    height: 100%;
+}
+
+.thought-result-content {
+    max-width: 100%;
+}
+
+.thought-header {
+    text-align: center;
+    margin-bottom: 24px;
+}
+
+.thought-emoji {
+    font-size: 48px;
+    margin-bottom: 12px;
+    display: inline-block;
+}
+
+.thought-title {
+    font-size: 20px;
+    letter-spacing: 0.1em;
+    color: var(--max-blue);
+    margin: 0;
+}
+
+.thought-text {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 20px;
+    padding: 20px;
+    margin-bottom: 24px;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--max-text);
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.thought-buttons {
+    display: flex;
+    gap: 12px;
+}
+
+.thought-buttons .onboarding-btn {
+    flex: 1;
+}
+
+/* 6. ДОПОЛНИТЕЛЬНЫЕ АНИМАЦИИ */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 0.5;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.1);
+    }
+}
+
+/* 7. АДАПТИВНОСТЬ ДЛЯ МОБИЛЬНЫХ */
+@media (max-width: 480px) {
+    .profile-buttons .button-row {
+        flex-direction: column;
+    }
+    
+    .thought-buttons {
+        flex-direction: column;
+    }
+    
+    .mode-cards {
+        gap: 12px;
+    }
+    
+    .mode-card {
+        padding: 16px;
+    }
+    
+    .profile-text {
+        padding: 16px;
+    }
+    
+    .goals-list {
+        gap: 10px;
+    }
+    
+    .goal-item {
+        padding: 14px;
+    }
+}
+
+/* 8. СТИЛИ ДЛЯ СКРОЛЛБАРА В НОВЫХ ЭКРАНАХ */
+.final-profile-container::-webkit-scrollbar,
+.choose-goal-container::-webkit-scrollbar,
+.choose-mode-container::-webkit-scrollbar,
+.thought-result-container::-webkit-scrollbar,
+.ask-question-container::-webkit-scrollbar {
+    width: 4px;
+}
+
+.final-profile-container::-webkit-scrollbar-track,
+.choose-goal-container::-webkit-scrollbar-track,
+.choose-mode-container::-webkit-scrollbar-track,
+.thought-result-container::-webkit-scrollbar-track,
+.ask-question-container::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.final-profile-container::-webkit-scrollbar-thumb,
+.choose-goal-container::-webkit-scrollbar-thumb,
+.choose-mode-container::-webkit-scrollbar-thumb,
+.thought-result-container::-webkit-scrollbar-thumb,
+.ask-question-container::-webkit-scrollbar-thumb {
+    background: var(--max-text-secondary);
+    border-radius: 4px;
+}
+
 /* Анимации */
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(5px); }
@@ -1727,7 +2259,10 @@ body {
 .gender-btn:active,
 .context-submit:active,
 .send-btn:active,
-.reaction:active {
+.reaction:active,
+.goal-item:active,
+.mode-card:active,
+.question-submit:active {
     transform: scale(0.97);
     transition: transform 0.1s;
 }
@@ -1760,7 +2295,10 @@ body {
 .gender-btn,
 .context-submit,
 .send-btn,
-.reaction {
+.reaction,
+.goal-item,
+.mode-card,
+.question-submit {
     min-height: 48px;
 }
 
@@ -1895,11 +2433,11 @@ body {
 
 /* Кнопка с эффектом стекла */
 .message-button {
-    background: rgba(128, 128, 128, 0.2);  /* Полупрозрачный серый */
+    background: rgba(128, 128, 128, 0.2);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 24px;  /* Скругленные края как в Telegram */
+    border-radius: 24px;
     padding: 12px 18px;
     font-size: 15px;
     font-weight: 500;
@@ -1980,18 +2518,6 @@ body {
     .message-button:hover {
         background: rgba(180, 180, 180, 0.4);
         border-color: rgba(0, 0, 0, 0.15);
-    }
-}
-
-/* Анимация появления сообщений */
-@keyframes messageAppear {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
     }
 }
 

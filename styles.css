@@ -1,5 +1,5 @@
 /* ========== STYLES.CSS ========== */
-/* ОРИГИНАЛЬНЫЕ ЦВЕТА MAX + ФОРМА ТЕЛЕФОНА + ЦЕНТРИРОВАНИЕ + ПРАВИЛЬНЫЕ ОБЛАЧКА */
+/* ОРИГИНАЛЬНЫЕ ЦВЕТА MAX + ФОРМА ТЕЛЕФОНА + ЦЕНТРИРОВАНИЕ + ОБЛАЧКА КАК В TELEGRAM */
 
 :root {
     /* Оригинальные цвета MAX (из вашего бота) */
@@ -557,41 +557,83 @@ body {
 .messages-list {
     display: flex;
     flex-direction: column;
-    gap: var(--message-gap);
+    gap: 8px;  /* Увеличенный отступ между сообщениями */
 }
 
-/* ========== ИСПРАВЛЕННЫЕ ОБЛАЧКА СООБЩЕНИЙ ========== */
+/* ========== ОБЛАЧКА СООБЩЕНИЙ КАК В TELEGRAM ========== */
 .message {
     display: flex;
     flex-direction: column;
-    max-width: var(--message-max-width, 85%);
+    max-width: 85%;
     min-width: 80px;
-    width: fit-content;  /* Ширина по содержимому */
-    animation: fadeIn 0.2s ease;
+    width: fit-content;
+    animation: messageAppear 0.2s ease-out;
+    margin-bottom: 4px;
+    position: relative;
 }
 
 .message.bot-message {
     align-items: flex-start;
-    margin-right: auto;  /* Прижимает к левому краю */
+    margin-right: auto;
 }
 
 .message.user-message {
     align-items: flex-end;
-    margin-left: auto;   /* Прижимает к правому краю */
+    margin-left: auto;
 }
 
 .message-bubble {
     background-color: var(--max-message-bot);
     border-radius: 18px 18px 18px 4px;
-    padding: 8px 12px;
+    padding: 10px 14px;
     word-wrap: break-word;
-    width: fit-content;  /* Ширина по тексту */
-    max-width: 100%;      /* Но не больше контейнера */
+    width: fit-content;
+    max-width: 100%;
+    
+    /* ВЫДЕЛЕНИЕ КАК В TELEGRAM */
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    border: 1px solid #2b3b4a;
+    
+    /* Уголок как в Telegram */
+    position: relative;
 }
 
-.user-message .message-bubble {
+.message.bot-message .message-bubble::before {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: -6px;
+    width: 10px;
+    height: 10px;
+    background-color: var(--max-message-bot);
+    border-radius: 0 0 10px 0;
+    border-right: 1px solid #2b3b4a;
+    border-bottom: 1px solid #2b3b4a;
+}
+
+.message.user-message .message-bubble {
     background-color: var(--max-message-user);
     border-radius: 18px 18px 4px 18px;
+    
+    /* ВЫДЕЛЕНИЕ КАК В TELEGRAM */
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    border: 1px solid #3a68a0;
+    
+    /* Уголок как в Telegram */
+    position: relative;
+}
+
+.message.user-message .message-bubble::before {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    right: -6px;
+    width: 10px;
+    height: 10px;
+    background-color: var(--max-message-user);
+    border-radius: 0 0 0 10px;
+    border-left: 1px solid #3a68a0;
+    border-bottom: 1px solid #3a68a0;
 }
 
 .message-text {
@@ -599,8 +641,8 @@ body {
     line-height: 1.5;
     color: var(--max-text);
     white-space: pre-wrap;
-    text-align: left;      /* Текст всегда слева */
-    word-break: break-word; /* Перенос длинных слов */
+    text-align: left;
+    word-break: break-word;
 }
 
 .message-time {
@@ -611,14 +653,42 @@ body {
 }
 
 /* Тестовые сообщения (заглушки) */
-.message.test-message {
+.message.test-message .message-bubble {
+    background-color: var(--max-panel-bg);
+    border: 1px dashed var(--max-text-secondary);
     opacity: 0.7;
     font-style: italic;
 }
 
-.message.test-message .message-bubble {
-    background-color: var(--max-panel-bg);
-    border: 1px dashed var(--max-text-secondary);
+.message.test-message .message-bubble::before {
+    display: none;  /* Убираем уголок у тестовых */
+}
+
+/* Группировка сообщений */
+.message-group .message-bubble {
+    border-radius: 4px;
+}
+
+.message-group-first .message-bubble {
+    border-radius: 18px 18px 4px 4px;
+}
+
+.message-group-last .message-bubble {
+    border-radius: 4px 4px 18px 18px;
+}
+
+.message-group-first.bot-message .message-bubble::before,
+.message-group-last.bot-message .message-bubble::before,
+.message-group-first.user-message .message-bubble::before,
+.message-group-last.user-message .message-bubble::before {
+    display: block;  /* Уголок только у первого/последнего */
+}
+
+/* Ховер-эффект */
+.message-bubble:hover {
+    transform: scale(1.01);
+    transition: transform 0.1s;
+    filter: brightness(1.1);
 }
 
 /* Индикатор печати */
@@ -629,6 +699,8 @@ body {
     background-color: var(--max-message-bot);
     border-radius: 18px;
     width: fit-content;
+    border: 1px solid #2b3b4a;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .typing-indicator.visible {
@@ -644,8 +716,19 @@ body {
 }
 
 @keyframes typingPulse {
-    0%, 100% { opacity: 0.3; }
-    50% { opacity: 1; }
+    0%, 100% { opacity: 0.3; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.2); }
+}
+
+@keyframes messageAppear {
+    from {
+        opacity: 0;
+        transform: translateY(10px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
 }
 
 /* ===== ПАНЕЛЬ ВВОДА ===== */

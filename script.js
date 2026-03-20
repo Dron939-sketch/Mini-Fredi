@@ -343,12 +343,8 @@ const App = {
             if (status.first_visit || !status.context_complete) {
                 this.showOnboardingScreen1();
             } else if (!status.test_completed) {
-                // Контекст есть, тест не пройден
-                if (typeof Context !== 'undefined') {
-                    Context.showCompleteScreen(this.userContext);
-                } else {
-                    this.showOnboardingScreen1();
-                }
+                // Контекст есть, тест не пройден - показываем экран с кнопкой начала теста
+                this.showCompleteScreen();
             } else {
                 // Всё пройдено - показываем чат
                 this.showMainChat();
@@ -388,17 +384,8 @@ const App = {
             
             if (startBtn) {
                 startBtn.addEventListener('click', () => {
-                    if (typeof Context !== 'undefined') {
-                        Context.startCollection();
-                    } else {
-                        // ЗАПУСК ТЕСТА
-                        if (typeof Test !== 'undefined') {
-                            Test.init(this.userId);
-                            Test.start();
-                        } else {
-                            alert('Функция теста временно недоступна');
-                        }
-                    }
+                    // Начинаем сбор контекста (город, пол, возраст)
+                    this.showContextScreen('city');
                 });
             }
             
@@ -423,17 +410,8 @@ const App = {
             const letsGoBtn = document.getElementById('letsGoBtn');
             if (letsGoBtn) {
                 letsGoBtn.addEventListener('click', () => {
-                    if (typeof Context !== 'undefined') {
-                        Context.startCollection();
-                    } else {
-                        // ЗАПУСК ТЕСТА
-                        if (typeof Test !== 'undefined') {
-                            Test.init(this.userId);
-                            Test.start();
-                        } else {
-                            alert('Начинаем тест!');
-                        }
-                    }
+                    // Начинаем сбор контекста (город, пол, возраст)
+                    this.showContextScreen('city');
                 });
             }
         }, 100);
@@ -530,6 +508,7 @@ const App = {
                         const age = parseInt(input.value);
                         if (age && age > 0 && age < 120) {
                             this.userContext.age = age;
+                            // После сбора возраста показываем экран с предложением теста
                             this.showCompleteScreen();
                         } else {
                             alert('Введите корректный возраст');
@@ -545,6 +524,7 @@ const App = {
                 
                 if (skipBtn) {
                     skipBtn.addEventListener('click', () => {
+                        // Если пропустили возраст, всё равно показываем экран с предложением теста
                         this.showCompleteScreen();
                     });
                 }
@@ -587,7 +567,7 @@ const App = {
             
             if (startTestBtn) {
                 startTestBtn.addEventListener('click', () => {
-                    // ЗАПУСК ТЕСТА
+                    // ЗАПУСК ТЕСТА после сбора контекста
                     if (typeof Test !== 'undefined') {
                         Test.init(this.userId);
                         Test.start();

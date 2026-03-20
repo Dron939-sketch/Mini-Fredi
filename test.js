@@ -917,7 +917,7 @@ const Test = {
     },
     
     // ============================================
-    // ЛОГИКА ТЕСТА - ИСПРАВЛЕННЫЕ МЕТОДЫ
+    // ЛОГИКА ТЕСТА
     // ============================================
     
     getCurrentQuestions() {
@@ -952,7 +952,6 @@ const Test = {
         this.discrepancies = [];
         this.clarifyingAnswers = [];
         
-        // Останавливаем предыдущий опрос если был
         if (this.pollingInterval) {
             clearInterval(this.pollingInterval);
             this.pollingInterval = null;
@@ -1061,7 +1060,18 @@ const Test = {
         if (!list) return;
         const msg = document.createElement('div');
         msg.className = 'message bot-message';
-        msg.innerHTML = `<div class="message-bubble"><div class="message-text">${text}</div><div class="message-time">только что</div></div>`;
+        // Защита эмодзи: используем textContent вместо innerHTML
+        const bubble = document.createElement('div');
+        bubble.className = 'message-bubble';
+        const textDiv = document.createElement('div');
+        textDiv.className = 'message-text';
+        textDiv.textContent = text;
+        const timeDiv = document.createElement('div');
+        timeDiv.className = 'message-time';
+        timeDiv.textContent = 'только что';
+        bubble.appendChild(textDiv);
+        bubble.appendChild(timeDiv);
+        msg.appendChild(bubble);
         list.appendChild(msg);
         this.scrollToBottom();
         return msg;
@@ -1072,7 +1082,23 @@ const Test = {
         if (!list) return;
         const msg = document.createElement('div');
         msg.className = 'message user-message';
-        msg.innerHTML = `<div class="message-bubble"><div class="message-text">${text}</div><div class="message-time">только что</div><div class="message-status"><span class="status-icon sent"></span></div></div>`;
+        const bubble = document.createElement('div');
+        bubble.className = 'message-bubble';
+        const textDiv = document.createElement('div');
+        textDiv.className = 'message-text';
+        textDiv.textContent = text;
+        const timeDiv = document.createElement('div');
+        timeDiv.className = 'message-time';
+        timeDiv.textContent = 'только что';
+        const statusDiv = document.createElement('div');
+        statusDiv.className = 'message-status';
+        const statusSpan = document.createElement('span');
+        statusSpan.className = 'status-icon sent';
+        statusDiv.appendChild(statusSpan);
+        bubble.appendChild(textDiv);
+        bubble.appendChild(timeDiv);
+        bubble.appendChild(statusDiv);
+        msg.appendChild(bubble);
         list.appendChild(msg);
         this.scrollToBottom();
     },
@@ -1099,7 +1125,10 @@ const Test = {
             const btn = document.createElement('button');
             btn.className = 'message-button';
             btn.setAttribute('data-option-index', idx);
-            btn.innerHTML = `<span>${optText}</span>`;
+            // Защита эмодзи: используем textContent
+            const span = document.createElement('span');
+            span.textContent = optText;
+            btn.appendChild(span);
             
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -1154,7 +1183,9 @@ const Test = {
             const button = document.createElement('button');
             button.className = 'message-button';
             button.setAttribute('data-callback', i);
-            button.innerHTML = `<span>${btn.text}</span>`;
+            const span = document.createElement('span');
+            span.textContent = btn.text;
+            button.appendChild(span);
             
             button.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -1515,18 +1546,14 @@ const Test = {
     showStage5Result() {
         const deep = this.deepPatterns || { attachment: "🤗 Надежный" };
         
-        // Показываем статусное сообщение
         const statusMsg = this.addBotMessage(
             `✨ РЕЗУЛЬТАТ ЭТАПА 5\n\nТип привязанности: ${deep.attachment}\n\n✅ ТЕСТ ЗАВЕРШЕН!\n\n🧠 Анализирую данные...\n\nСобираю воедино результаты 5 этапов тестирования.\nЭто займёт около 20-30 секунд.\n\nФормирую ваш точный психологический портрет...`
         );
         
-        // Сохраняем элемент статусного сообщения
         this.statusMessageElement = statusMsg;
         
-        // Отправляем результаты на сервер
         this.sendTestResultsToServer();
         
-        // Запускаем опрос сервера
         this.startPollingForInterpretation();
     },
     
@@ -1580,10 +1607,9 @@ const Test = {
     // ===== ОПРОС СЕРВЕРА ДЛЯ ПОЛУЧЕНИЯ ИНТЕРПРЕТАЦИИ =====
     startPollingForInterpretation() {
         let attempts = 0;
-        const maxAttempts = 60; // 60 попыток * 2 секунды = 120 секунд
+        const maxAttempts = 60;
         let dots = 0;
         
-        // Останавливаем предыдущий опрос если был
         if (this.pollingInterval) {
             clearInterval(this.pollingInterval);
         }
@@ -1591,7 +1617,6 @@ const Test = {
         this.pollingInterval = setInterval(async () => {
             attempts++;
             
-            // Обновляем статусное сообщение с анимацией точек
             if (this.statusMessageElement && attempts % 5 === 0) {
                 dots = (dots + 1) % 4;
                 const dotText = '.'.repeat(dots);
@@ -1609,22 +1634,16 @@ const Test = {
                 const data = await response.json();
                 
                 if (data.success && data.interpretation) {
-                    // Получили интерпретацию!
                     clearInterval(this.pollingInterval);
                     this.pollingInterval = null;
                     
-                    // Удаляем статусное сообщение
                     if (this.statusMessageElement) {
                         this.statusMessageElement.remove();
                         this.statusMessageElement = null;
                     }
                     
-                    // Показываем интерпретацию
                     this.addBotMessage(data.interpretation);
-                    
-                    // Показываем финальные кнопки
                     this.showFinalProfileButtons();
-                    
                     console.log('✅ Интерпретация получена');
                 }
                 
@@ -1632,7 +1651,6 @@ const Test = {
                     clearInterval(this.pollingInterval);
                     this.pollingInterval = null;
                     
-                    // Удаляем статусное сообщение
                     if (this.statusMessageElement) {
                         this.statusMessageElement.remove();
                         this.statusMessageElement = null;
@@ -1644,7 +1662,7 @@ const Test = {
             } catch (error) {
                 console.error('❌ Ошибка опроса:', error);
             }
-        }, 2000); // каждые 2 секунды
+        }, 2000);
     },
     
     // ============================================

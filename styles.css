@@ -1,8 +1,9 @@
 /* ========== STYLES.CSS ========== */
 /* ОРИГИНАЛЬНЫЕ ЦВЕТА MAX + ФОРМА ТЕЛЕФОНА + ЦЕНТРИРОВАНИЕ + ОБЛАЧКА КАК В TELEGRAM */
+/* + СВЕТЛАЯ ТЕМА + ИНДИКАТОР ПРОЧИТАНО + РЕАКЦИИ */
 
 :root {
-    /* Оригинальные цвета MAX (из вашего бота) */
+    /* Оригинальные цвета MAX (из вашего бота) - ТЕМНАЯ ТЕМА ПО УМОЛЧАНИЮ */
     --max-bg: #0e1621;              /* Тёмный фон как в MAX */
     --max-panel-bg: #17212b;         /* Панели как в MAX */
     --max-header-bg: #1f2c38;        /* Шапка как в MAX */
@@ -12,9 +13,13 @@
     --max-text: #ffffff;              /* Белый текст */
     --max-text-secondary: #8e9aa6;    /* Серый второстепенный */
     --max-border: #0f1b26;            /* Границы как в MAX */
+    --max-border-light: #2b3b4a;      /* Светлые границы */
     --max-hover: #2b3b4a;             /* Ховер эффект */
     --max-blue: #248bf2;              /* Синий акцент MAX */
     --max-blue-hover: #1a7ad9;        /* Синий при наведении */
+    --max-green: #4caf50;              /* Зеленый для статусов */
+    --max-red: #f44336;                /* Красный для ошибок */
+    --max-yellow: #ffc107;              /* Желтый для предупреждений */
     
     /* Ширина сообщений как в Telegram */
     --message-max-width: 85%;
@@ -49,6 +54,46 @@
     --phone-max-height: min(800px, 90vh);    /* Не выше 800px или 90% экрана */
     --phone-min-width: 320px;
     --phone-min-height: 600px;                /* Минимальная высота */
+}
+
+/* ===== СВЕТЛАЯ ТЕМА (автоматически под систему) ===== */
+@media (prefers-color-scheme: light) {
+    :root {
+        --max-bg: #f0f2f5;
+        --max-panel-bg: #ffffff;
+        --max-header-bg: #e6e9ed;
+        --max-input-bg: #ffffff;
+        --max-message-bot: #e8e8e8;
+        --max-message-user: #dcf8c6;
+        --max-text: #000000;
+        --max-text-secondary: #5e6a7a;
+        --max-border: #d0d5dd;
+        --max-border-light: #c0c0c0;
+        --max-hover: #e0e0e0;
+        --max-blue: #248bf2;
+        --max-blue-hover: #1a7ad9;
+    }
+    
+    /* Корректировка уголков для светлой темы */
+    .message.bot-message .message-bubble {
+        border: 1px solid #d0d0d0;
+    }
+    
+    .message.bot-message .message-bubble::before {
+        background-color: #e8e8e8;
+        border-right: 1px solid #d0d0d0;
+        border-bottom: 1px solid #d0d0d0;
+    }
+    
+    .message.user-message .message-bubble {
+        border: 1px solid #b0e0a0;
+    }
+    
+    .message.user-message .message-bubble::before {
+        background-color: #dcf8c6;
+        border-left: 1px solid #b0e0a0;
+        border-bottom: 1px solid #b0e0a0;
+    }
 }
 
 * {
@@ -226,16 +271,196 @@ body {
     margin-bottom: var(--spacing-md);
 }
 
+/* ===== ИСПРАВЛЕННАЯ ЦЕНТРОВКА КНОПОК ===== */
 /* Кнопки на центрированных экранах */
 .centered-screen .onboarding-buttons,
 .form-screen .gender-buttons,
-.choice-screen .mode-buttons {
+.choice-screen .mode-buttons,
+.centered-screen .context-buttons,
+.form-screen .action-buttons,
+.choice-screen .option-buttons,
+.benefits-buttons,
+.context-complete-buttons {
     display: flex;
     flex-direction: column;
     gap: var(--spacing-md);
     width: 100%;
     max-width: 280px;
-    margin-top: var(--spacing-lg);
+    margin: var(--spacing-lg) auto 0 auto;  /* Центрирование через auto margin */
+    align-items: center;
+}
+
+/* Кнопки в ряду (горизонтальное расположение) */
+.button-row {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    gap: var(--spacing-md);
+    width: 100%;
+    max-width: 320px;
+    margin: var(--spacing-lg) auto 0 auto;
+    flex-wrap: wrap;
+}
+
+/* Отдельные кнопки */
+.onboarding-btn,
+.context-submit,
+.gender-btn,
+.mode-btn,
+.action-btn,
+.primary-btn,
+.secondary-btn {
+    width: 100%;
+    min-width: 200px;
+    max-width: 280px;
+    padding: 14px 20px;
+    border-radius: 30px;
+    font-size: var(--text-md);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+    text-align: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;  /* Центрирование самой кнопки */
+}
+
+/* Кнопки в ряду */
+.button-row .onboarding-btn,
+.button-row .gender-btn,
+.button-row .mode-btn {
+    width: auto;
+    min-width: 120px;
+    max-width: 150px;
+    flex: 1;
+}
+
+/* Специально для гендерных кнопок */
+.gender-buttons {
+    display: flex;
+    flex-direction: row !important;  /* В ряд на десктопе */
+    justify-content: center;
+    gap: var(--spacing-lg);
+    flex-wrap: wrap;
+}
+
+.gender-btn {
+    flex: 0 1 auto;
+    min-width: 120px;
+    max-width: 140px;
+    padding: var(--spacing-lg) var(--spacing-md);
+    background-color: var(--max-input-bg);
+    border: 1px solid var(--max-border);
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.gender-btn:hover {
+    background-color: var(--max-hover);
+    border-color: var(--max-blue);
+}
+
+.gender-emoji {
+    font-size: 32px;
+}
+
+.gender-text {
+    font-size: var(--text-sm);
+}
+
+/* Контейнер для ввода с кнопкой */
+.context-input-group {
+    display: flex;
+    gap: var(--spacing-sm);
+    width: 100%;
+    max-width: 320px;
+    margin: var(--spacing-md) auto;
+    justify-content: center;
+}
+
+.context-input {
+    flex: 1;
+    padding: 12px 16px;
+    background-color: var(--max-input-bg);
+    border: 1px solid var(--max-border);
+    border-radius: 30px;
+    color: var(--max-text);
+    font-size: var(--text-md);
+    outline: none;
+}
+
+.context-input:focus {
+    border-color: var(--max-blue);
+}
+
+.context-submit {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background-color: var(--max-blue);
+    border: none;
+    color: white;
+    font-size: 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    padding: 0;  /* Убираем лишние отступы */
+    min-width: 48px;  /* Фиксированная ширина */
+}
+
+.context-submit:hover {
+    background-color: var(--max-blue-hover);
+}
+
+.context-skip {
+    background: none;
+    border: none;
+    color: var(--max-text-secondary);
+    font-size: var(--text-sm);
+    cursor: pointer;
+    padding: var(--spacing-md);
+    display: block;
+    margin: var(--spacing-sm) auto;
+    text-align: center;
+}
+
+.context-skip:hover {
+    color: var(--max-text);
+}
+
+/* Для мобильных устройств - вертикальное расположение */
+@media (max-width: 480px) {
+    .gender-buttons {
+        flex-direction: column !important;
+        align-items: center;
+    }
+    
+    .gender-btn {
+        width: 100%;
+        max-width: 200px;
+    }
+    
+    .button-row {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .button-row .onboarding-btn,
+    .button-row .gender-btn,
+    .button-row .mode-btn {
+        width: 100%;
+        max-width: 280px;
+    }
 }
 
 /* ===== ЛЕВАЯ ПАНЕЛЬ ===== */
@@ -592,7 +817,7 @@ body {
     
     /* ВЫДЕЛЕНИЕ КАК В TELEGRAM */
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-    border: 1px solid #2b3b4a;
+    border: 1px solid var(--max-border-light);
     
     /* Уголок как в Telegram */
     position: relative;
@@ -607,8 +832,8 @@ body {
     height: 10px;
     background-color: var(--max-message-bot);
     border-radius: 0 0 10px 0;
-    border-right: 1px solid #2b3b4a;
-    border-bottom: 1px solid #2b3b4a;
+    border-right: 1px solid var(--max-border-light);
+    border-bottom: 1px solid var(--max-border-light);
 }
 
 .message.user-message .message-bubble {
@@ -652,6 +877,154 @@ body {
     margin-top: 4px;
 }
 
+/* ===== ИНДИКАТОР ПРОЧИТАНО ===== */
+.message-status {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 2px;
+    font-size: 11px;
+    color: var(--max-text-secondary);
+    margin-top: 2px;
+}
+
+.message.bot-message .message-status {
+    justify-content: flex-start;
+}
+
+.message.user-message .message-status {
+    justify-content: flex-end;
+}
+
+.status-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    font-size: 12px;
+}
+
+.status-icon.sent {
+    color: var(--max-text-secondary);
+}
+
+.status-icon.delivered {
+    color: var(--max-text-secondary);
+}
+
+.status-icon.read {
+    color: var(--max-blue);
+}
+
+.status-icon::before {
+    content: "✓";
+}
+
+.status-icon.delivered::before {
+    content: "✓✓";
+}
+
+.status-icon.read::before {
+    content: "✓✓";
+    color: var(--max-blue);
+}
+
+/* ===== РЕАКЦИИ НА СООБЩЕНИЯ ===== */
+.message-reactions {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+    flex-wrap: wrap;
+}
+
+.message.bot-message .message-reactions {
+    justify-content: flex-start;
+}
+
+.message.user-message .message-reactions {
+    justify-content: flex-end;
+}
+
+.reaction {
+    background-color: var(--max-panel-bg);
+    border: 1px solid var(--max-border);
+    border-radius: 16px;
+    padding: 4px 8px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    user-select: none;
+}
+
+.reaction:hover {
+    transform: scale(1.1);
+    border-color: var(--max-blue);
+    background-color: var(--max-hover);
+}
+
+.reaction.active {
+    border-color: var(--max-blue);
+    background-color: rgba(36, 139, 242, 0.1);
+}
+
+.reaction-emoji {
+    font-size: 14px;
+}
+
+.reaction-count {
+    font-size: 11px;
+    color: var(--max-text-secondary);
+    font-weight: 600;
+}
+
+.reaction.active .reaction-count {
+    color: var(--max-blue);
+}
+
+/* Палитра реакций при наведении */
+.reactions-picker {
+    display: none;
+    position: absolute;
+    bottom: 100%;
+    right: 0;
+    background-color: var(--max-panel-bg);
+    border: 1px solid var(--max-border);
+    border-radius: 30px;
+    padding: 6px 10px;
+    gap: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    z-index: 10;
+    margin-bottom: 8px;
+}
+
+.message.user-message .reactions-picker {
+    right: 0;
+}
+
+.message.bot-message .reactions-picker {
+    left: 0;
+    right: auto;
+}
+
+.message:hover .reactions-picker {
+    display: flex;
+}
+
+.reaction-option {
+    font-size: 18px;
+    cursor: pointer;
+    transition: transform 0.2s;
+    padding: 2px;
+}
+
+.reaction-option:hover {
+    transform: scale(1.3);
+}
+
 /* Тестовые сообщения (заглушки) */
 .message.test-message .message-bubble {
     background-color: var(--max-panel-bg);
@@ -677,13 +1050,6 @@ body {
     border-radius: 4px 4px 18px 18px;
 }
 
-.message-group-first.bot-message .message-bubble::before,
-.message-group-last.bot-message .message-bubble::before,
-.message-group-first.user-message .message-bubble::before,
-.message-group-last.user-message .message-bubble::before {
-    display: block;  /* Уголок только у первого/последнего */
-}
-
 /* Ховер-эффект */
 .message-bubble:hover {
     transform: scale(1.01);
@@ -699,7 +1065,7 @@ body {
     background-color: var(--max-message-bot);
     border-radius: 18px;
     width: fit-content;
-    border: 1px solid #2b3b4a;
+    border: 1px solid var(--max-border-light);
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
@@ -845,6 +1211,7 @@ body {
     gap: var(--spacing-md);
     width: 100%;
     max-width: 280px;
+    margin: var(--spacing-lg) auto 0 auto;
 }
 
 .onboarding-btn {
@@ -905,97 +1272,6 @@ body {
     margin-bottom: var(--spacing-lg);
 }
 
-.context-input-group {
-    display: flex;
-    gap: var(--spacing-sm);
-    width: 100%;
-    max-width: 280px;
-    margin-bottom: var(--spacing-md);
-}
-
-.context-input {
-    flex: 1;
-    padding: 12px 16px;
-    background-color: var(--max-input-bg);
-    border: 1px solid var(--max-border);
-    border-radius: 30px;
-    color: var(--max-text);
-    font-size: var(--text-md);
-    outline: none;
-}
-
-.context-input:focus {
-    border-color: var(--max-blue);
-}
-
-.context-submit {
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    background-color: var(--max-blue);
-    border: none;
-    color: white;
-    font-size: 20px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.context-submit:hover {
-    background-color: var(--max-blue-hover);
-}
-
-.context-skip {
-    background: none;
-    border: none;
-    color: var(--max-text-secondary);
-    font-size: var(--text-sm);
-    cursor: pointer;
-    padding: var(--spacing-md);
-}
-
-.context-skip:hover {
-    color: var(--max-text);
-}
-
-/* Выбор пола */
-.gender-buttons {
-    display: flex;
-    gap: var(--spacing-lg);
-    margin: var(--spacing-xl) 0;
-    width: 100%;
-    max-width: 320px;
-}
-
-.gender-btn {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: var(--spacing-sm);
-    padding: var(--spacing-lg) var(--spacing-md);
-    background-color: var(--max-input-bg);
-    border: 1px solid var(--max-border);
-    border-radius: 20px;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.gender-btn:hover {
-    background-color: var(--max-hover);
-    border-color: var(--max-blue);
-}
-
-.gender-emoji {
-    font-size: 32px;
-}
-
-.gender-text {
-    font-size: var(--text-sm);
-}
-
 /* Завершение контекста */
 .context-complete-container {
     display: flex;
@@ -1037,6 +1313,7 @@ body {
     gap: var(--spacing-md);
     width: 100%;
     max-width: 280px;
+    margin: var(--spacing-lg) auto 0 auto;
 }
 
 /* Преимущества теста */
@@ -1093,6 +1370,7 @@ body {
     gap: var(--spacing-md);
     width: 100%;
     max-width: 280px;
+    margin: var(--spacing-lg) auto 0 auto;
 }
 
 /* Анимации */
@@ -1107,7 +1385,8 @@ body {
 .onboarding-btn:active,
 .gender-btn:active,
 .context-submit:active,
-.send-btn:active {
+.send-btn:active,
+.reaction:active {
     transform: scale(0.97);
     transition: transform 0.1s;
 }
@@ -1139,7 +1418,8 @@ body {
 .onboarding-btn,
 .gender-btn,
 .context-submit,
-.send-btn {
+.send-btn,
+.reaction {
     min-height: 48px;  /* Минимальный размер для сенсорных экранов */
 }
 

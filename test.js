@@ -1,6 +1,6 @@
 // ========== test.js ==========
 // ПОЛНЫЙ ТЕСТ ИЗ 5 ЭТАПОВ КАК В TELEGRAM
-// С ЭКРАНАМИ ПОСЛЕ КАЖДОГО ЭТАПА И КНОПКАМИ
+// С ОТПРАВКОЙ РЕЗУЛЬТАТОВ НА СЕРВЕР
 
 const Test = {
     // Текущее состояние
@@ -1095,7 +1095,7 @@ const Test = {
             const btn = document.createElement('button');
             btn.className = 'message-button';
             btn.setAttribute('data-option-index', idx);
-            btn.textContent = optText;
+            btn.innerHTML = `<span>${optText}</span>`;
             
             // Добавляем обработчик
             btn.addEventListener('click', (e) => {
@@ -1162,7 +1162,7 @@ const Test = {
             const button = document.createElement('button');
             button.className = 'message-button';
             button.setAttribute('data-callback', i);
-            button.textContent = btn.text;
+            button.innerHTML = `<span>${btn.text}</span>`;
             
             button.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -1529,9 +1529,70 @@ const Test = {
     // ============================================
     showStage5Result() {
         const deep = this.deepPatterns || { attachment: "🤗 Надежный" };
-        const text = `✨ РЕЗУЛЬТАТ ЭТАПА 5\n\nТип привязанности: ${deep.attachment}\n\n✅ ТЕСТ ЗАВЕРШЕН!\n\nСейчас я сформирую ваш полный психологический портрет...`;
+        
+        // Показываем краткий результат
+        const text = `✨ РЕЗУЛЬТАТ ЭТАПА 5\n\nТип привязанности: ${deep.attachment}\n\n✅ ТЕСТ ЗАВЕРШЕН!\n\n🧠 Анализирую данные...\n\nСобираю воедино результаты 5 этапов тестирования.\nЭто займёт около 20-30 секунд.\n\nФормирую ваш точный психологический портрет...`;
+        
         this.addBotMessage(text);
-        setTimeout(() => this.showFinalProfile(), 2000);
+        
+        // Отправляем результаты на сервер
+        this.sendTestResultsToServer();
+        
+        // Через 2 секунды показываем, что ждем ответ
+        setTimeout(() => {
+            this.addBotMessage("⏳ Жду ответ от сервера... Результаты уже в обработке.");
+        }, 2000);
+    },
+    
+    // ===== НОВЫЙ МЕТОД: ОТПРАВКА РЕЗУЛЬТАТОВ НА СЕРВЕР =====
+    async sendTestResultsToServer() {
+        if (!this.userId) {
+            console.error('❌ Нет userId для отправки результатов');
+            return;
+        }
+        
+        const results = {
+            user_id: this.userId,
+            results: {
+                perception_type: this.perceptionType,
+                thinking_level: this.thinkingLevel,
+                behavioral_levels: this.behavioralLevels,
+                dilts_counts: this.diltsCounts,
+                deep_patterns: this.deepPatterns || { attachment: "🤗 Надежный" },
+                profile_data: this.calculateFinalProfile(),
+                all_answers: this.answers,
+                test_completed: true,
+                test_completed_at: new Date().toISOString()
+            }
+        };
+        
+        console.log('📤 Отправка результатов на сервер:', results);
+        
+        try {
+            // Отправляем на сервер
+            const response = await fetch('/api/save-test-results', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(results)
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                console.log('✅ Результаты теста успешно отправлены на сервер');
+                
+                // Добавляем сообщение, что ответ придет в Telegram
+                this.addBotMessage("📨 Результаты отправлены. Ожидайте ответ от психолога в Telegram...");
+            } else {
+                console.error('❌ Ошибка при отправке:', data.error);
+                this.addBotMessage("❌ Не удалось отправить результаты. Попробуйте позже.");
+            }
+        } catch (error) {
+            console.error('❌ Ошибка сети:', error);
+            this.addBotMessage("❌ Ошибка соединения с сервером. Проверьте интернет.");
+        }
     },
     
     // ============================================

@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Фреди · виртуальный психолог</title>
+    
+    <!-- 🔥 MAX BRIDGE - ОБЯЗАТЕЛЬНО ДЛЯ РАБОТЫ В МЕССЕНДЖЕРЕ MAX 🔥 -->
+    <script src="https://st.max.ru/js/max-web-app.js"></script>
+    
     <link rel="stylesheet" href="styles.css">
     <style>
         /* Базовые стили на время загрузки (до применения темы) */
@@ -99,6 +103,39 @@
             display: none;
         }
         
+        /* Toast уведомления */
+        .toast-message {
+            position: fixed;
+            bottom: 120px;
+            left: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.9);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 30px;
+            text-align: center;
+            z-index: 1100;
+            transition: opacity 0.3s;
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        .toast-message.show {
+            opacity: 1;
+        }
+        
+        .toast-message.success {
+            background: #28a745;
+        }
+        
+        .toast-message.error {
+            background: #dc3545;
+        }
+        
+        .toast-message.info {
+            background: var(--max-blue, #248bf2);
+        }
+        
         /* Адаптация для мобильных */
         @media (max-width: 480px) {
             .voice-record-btn {
@@ -112,11 +149,17 @@
                 padding: 6px 16px;
                 font-size: 16px;
             }
+            
+            .toast-message {
+                bottom: 100px;
+                padding: 10px 16px;
+                font-size: 14px;
+            }
         }
     </style>
 </head>
 <body>
-        <script>
+    <script>
         // ===== ПОЛУЧЕНИЕ USER_ID ОТ MAX =====
         (function() {
             let userId = null;
@@ -359,6 +402,9 @@
 
     <!-- ===== ТАЙМЕР ЗАПИСИ (будет показываться при записи) ===== -->
     <div id="recordingTimer" class="recording-timer" style="display: none;">0s</div>
+    
+    <!-- ===== TOAST УВЕДОМЛЕНИЯ ===== -->
+    <div id="toastMessage" class="toast-message"></div>
 
     <!-- ===== ШАБЛОНЫ ЭКРАНОВ ===== -->
 
@@ -772,7 +818,7 @@
     <script src="test.js"></script>
     <script src="script.js"></script>
     
-    <!-- Дополнительные стили для голосовых функций -->
+    <!-- ===== ДОПОЛНИТЕЛЬНЫЕ СТИЛИ ===== -->
     <style>
         /* Стили для финального профиля */
         .final-profile-container {
@@ -1242,5 +1288,194 @@
             }
         }
     </style>
+    
+    <!-- ===== ИНИЦИАЛИЗАЦИЯ ГОЛОСОВЫХ ФУНКЦИЙ ===== -->
+    <script>
+        // Глобальные переменные для голоса
+        window.voiceRecorder = {
+            mediaRecorder: null,
+            audioChunks: [],
+            isRecording: false,
+            recordingStartTime: null,
+            recordingTimer: null
+        };
+        
+        // Функция показа уведомления
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toastMessage');
+            if (!toast) return;
+            
+            toast.textContent = message;
+            toast.className = `toast-message ${type} show`;
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+        
+        // Функция начала записи
+        window.startVoiceRecording = async function() {
+            if (window.voiceRecorder.isRecording) {
+                stopVoiceRecording();
+                return;
+            }
+            
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                
+                window.voiceRecorder.mediaRecorder = new MediaRecorder(stream, {
+                    mimeType: MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/ogg'
+                });
+                window.voiceRecorder.audioChunks = [];
+                
+                window.voiceRecorder.mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        window.voiceRecorder.audioChunks.push(event.data);
+                    }
+                };
+                
+                window.voiceRecorder.mediaRecorder.onstop = async () => {
+                    stream.getTracks().forEach(track => track.stop());
+                    const audioBlob = new Blob(window.voiceRecorder.audioChunks, { type: 'audio/webm' });
+                    await sendVoiceToServer(audioBlob);
+                };
+                
+                window.voiceRecorder.mediaRecorder.start(1000);
+                window.voiceRecorder.isRecording = true;
+                window.voiceRecorder.recordingStartTime = Date.now();
+                
+                // Обновляем UI
+                const voiceBtn = document.getElementById('voiceRecordBtn');
+                if (voiceBtn) {
+                    voiceBtn.textContent = '⏹️';
+                    voiceBtn.classList.add('recording');
+                }
+                
+                const voiceStatus = document.getElementById('voiceStatus');
+                if (voiceStatus) voiceStatus.style.display = 'flex';
+                
+                startRecordingTimerUI();
+                
+                // Авто-остановка через 30 секунд
+                setTimeout(() => {
+                    if (window.voiceRecorder.isRecording) stopVoiceRecording();
+                }, 30000);
+                
+            } catch (error) {
+                console.error('Microphone error:', error);
+                showToast('Не удалось получить доступ к микрофону', 'error');
+            }
+        };
+        
+        // Функция остановки записи
+        window.stopVoiceRecording = function() {
+            if (window.voiceRecorder.mediaRecorder && window.voiceRecorder.isRecording) {
+                window.voiceRecorder.mediaRecorder.stop();
+                window.voiceRecorder.isRecording = false;
+                stopRecordingTimerUI();
+                
+                const voiceBtn = document.getElementById('voiceRecordBtn');
+                if (voiceBtn) {
+                    voiceBtn.textContent = '🎤';
+                    voiceBtn.classList.remove('recording');
+                }
+                
+                const voiceStatus = document.getElementById('voiceStatus');
+                if (voiceStatus) voiceStatus.style.display = 'none';
+            }
+        };
+        
+        // Запуск таймера записи
+        function startRecordingTimerUI() {
+            const timerEl = document.getElementById('recordingTimer');
+            if (!timerEl) return;
+            
+            if (window.voiceRecorder.recordingTimer) clearInterval(window.voiceRecorder.recordingTimer);
+            
+            window.voiceRecorder.recordingTimer = setInterval(() => {
+                if (window.voiceRecorder.isRecording && window.voiceRecorder.recordingStartTime) {
+                    const elapsed = Math.floor((Date.now() - window.voiceRecorder.recordingStartTime) / 1000);
+                    timerEl.textContent = `${elapsed}s`;
+                    timerEl.style.display = 'block';
+                    
+                    if (elapsed >= 30) stopVoiceRecording();
+                }
+            }, 1000);
+        }
+        
+        // Остановка таймера записи
+        function stopRecordingTimerUI() {
+            if (window.voiceRecorder.recordingTimer) {
+                clearInterval(window.voiceRecorder.recordingTimer);
+                window.voiceRecorder.recordingTimer = null;
+            }
+            const timerEl = document.getElementById('recordingTimer');
+            if (timerEl) timerEl.style.display = 'none';
+        }
+        
+        // Отправка голоса на сервер
+        async function sendVoiceToServer(audioBlob) {
+            showToast('Распознаю речь...', 'info');
+            
+            const formData = new FormData();
+            formData.append('user_id', window.maxContext?.user_id || localStorage.getItem('fredi_user_id'));
+            formData.append('voice', audioBlob, 'voice.webm');
+            
+            try {
+                const response = await fetch('/api/voice/process', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    if (result.recognized_text) {
+                        showToast(`🎤 Вы сказали: ${result.recognized_text}`, 'success');
+                    }
+                    if (result.answer) {
+                        // Добавляем ответ в чат
+                        const container = document.getElementById('screenContainer');
+                        if (container) {
+                            const answerDiv = document.createElement('div');
+                            answerDiv.className = 'bot-message';
+                            answerDiv.innerHTML = `<div class="message-bot">${result.answer}</div>`;
+                            container.appendChild(answerDiv);
+                            container.scrollTop = container.scrollHeight;
+                        }
+                    }
+                    if (result.audio_url) {
+                        const audio = document.getElementById('hiddenAudioPlayer');
+                        if (audio) {
+                            audio.src = result.audio_url;
+                            audio.play().catch(e => console.warn('Audio play error:', e));
+                        }
+                    }
+                } else {
+                    showToast(result.error || 'Не удалось распознать речь', 'error');
+                }
+            } catch (error) {
+                console.error('Send voice error:', error);
+                showToast('Ошибка отправки голоса', 'error');
+            }
+        }
+        
+        // Обработчик для голосовой кнопки
+        document.addEventListener('DOMContentLoaded', function() {
+            const voiceBtn = document.getElementById('voiceRecordBtn');
+            if (voiceBtn) {
+                voiceBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    if (window.startVoiceRecording) {
+                        window.startVoiceRecording();
+                    }
+                });
+            }
+        });
+        
+        // Экспортируем функции в глобальную область
+        window.showToast = showToast;
+        window.sendVoiceToServer = sendVoiceToServer;
+    </script>
 </body>
 </html>

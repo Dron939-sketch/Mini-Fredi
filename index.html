@@ -116,14 +116,76 @@
     </style>
 </head>
 <body>
-    <script>
+        <script>
         // ===== ПОЛУЧЕНИЕ USER_ID ОТ MAX =====
         (function() {
-            // Получаем параметры из URL (MAX передаёт их автоматически)
+            let userId = null;
+            let chatId = null;
+            let accessToken = null;
+            
+            // 1. Пробуем получить из URL параметров (прямая ссылка)
             const urlParams = new URLSearchParams(window.location.search);
-            const userId = urlParams.get('user_id');
-            const chatId = urlParams.get('chat_id');
-            const accessToken = urlParams.get('access_token');
+            userId = urlParams.get('user_id');
+            chatId = urlParams.get('chat_id');
+            accessToken = urlParams.get('access_token');
+            
+            if (userId) {
+                console.log('✅ user_id получен из URL:', userId);
+            }
+            
+            // 2. Пробуем получить из MAX WebApp (если открыто внутри MAX)
+            if (!userId && window.MAX?.WebApp?.initDataUnsafe?.user?.id) {
+                userId = window.MAX.WebApp.initDataUnsafe.user.id;
+                console.log('✅ user_id получен из MAX.WebApp:', userId);
+            }
+            
+            // 3. Пробуем получить из Telegram WebApp (для совместимости)
+            if (!userId && window.Telegram?.WebApp?.initDataUnsafe?.user?.id) {
+                userId = window.Telegram.WebApp.initDataUnsafe.user.id;
+                console.log('✅ user_id получен из Telegram.WebApp:', userId);
+            }
+            
+            // 4. Пробуем получить из localStorage (для тестирования)
+            if (!userId) {
+                const savedUserId = localStorage.getItem('fredi_user_id');
+                if (savedUserId) {
+                    userId = savedUserId;
+                    console.log('💾 user_id получен из localStorage:', userId);
+                }
+            }
+            
+            // 5. Если все еще нет user_id - запрашиваем у пользователя (только для теста)
+            if (!userId) {
+                const testMode = localStorage.getItem('fredi_test_mode');
+                if (testMode === 'true') {
+                    userId = prompt('🧪 ТЕСТОВЫЙ РЕЖИМ\n\nВведите ваш ID пользователя:', '213102077');
+                    if (userId) {
+                        localStorage.setItem('fredi_user_id', userId);
+                        localStorage.setItem('fredi_test_mode', 'true');
+                        console.log('🔧 Установлен тестовый user_id:', userId);
+                    } else {
+                        userId = '213102077'; // тестовый ID
+                        console.warn('⚠️ Используем тестовый user_id:', userId);
+                    }
+                } else {
+                    console.warn('⚠️ user_id не получен, переходим в режим ожидания');
+                    // Показываем сообщение, что нужно открыть через MAX
+                    document.body.innerHTML = `
+                        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; text-align: center; padding: 20px;">
+                            <div style="font-size: 64px; margin-bottom: 20px;">🧠</div>
+                            <h2>Откройте через MAX</h2>
+                            <p style="color: #8e9aa6; margin-top: 10px;">Это мини-приложение работает только внутри мессенджера MAX.<br>Пожалуйста, откройте его через бота.</p>
+                            <button onclick="location.reload()" style="margin-top: 30px; padding: 12px 24px; background: #248bf2; border: none; border-radius: 30px; color: white; font-size: 16px;">↻ Попробовать снова</button>
+                        </div>
+                    `;
+                    return;
+                }
+            }
+            
+            // Сохраняем в localStorage для следующих визитов
+            if (userId && userId !== '213102077') {
+                localStorage.setItem('fredi_user_id', userId);
+            }
             
             // Сохраняем глобально для использования во всех скриптах
             window.maxContext = {
@@ -132,23 +194,35 @@
                 access_token: accessToken
             };
             
-            if (userId) {
-                console.log('👤 Пользователь MAX ID:', userId);
-                // Можно сразу запросить данные пользователя
-                if (window.api) {
-                    window.api.getUserStatus(userId).then(data => {
+            console.log('🎯 Итоговый user_id:', userId);
+            console.log('📦 maxContext:', window.maxContext);
+            
+            // Сообщаем MAX, что приложение загружено
+            if (window.MAX?.WebApp) {
+                window.MAX.WebApp.ready();
+                window.MAX.WebApp.expand();
+            }
+            if (window.Telegram?.WebApp) {
+                window.Telegram.WebApp.ready();
+                window.Telegram.WebApp.expand();
+            }
+            
+            // Можно сразу запросить данные пользователя после загрузки API
+            setTimeout(() => {
+                if (window.api && window.api.getUserFullStatus) {
+                    window.api.getUserFullStatus(userId).then(data => {
                         console.log('📊 Данные пользователя:', data);
-                        // Обновим имя в приветствии, если нужно
                         const nameElement = document.getElementById('userNamePlaceholder');
                         if (nameElement && data.user_name) {
                             nameElement.textContent = data.user_name;
                         }
-                    });
+                        const userNameSpan = document.getElementById('userName');
+                        if (userNameSpan && data.user_name) {
+                            userNameSpan.textContent = data.user_name;
+                        }
+                    }).catch(e => console.warn('Ошибка загрузки данных:', e));
                 }
-            } else {
-                console.warn('⚠️ user_id не получен от MAX, используем тестовый режим');
-                window.maxContext = { user_id: 12345, test_mode: true };
-            }
+            }, 100);
         })();
 
         // ===== ПОЛУЧЕНИЕ ТЕМЫ ОТ MAX =====

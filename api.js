@@ -1,6 +1,6 @@
 // ========== app.js ==========
 // ПОЛНАЯ ВЕРСИЯ МИНИ-ПРИЛОЖЕНИЯ
-// С ПРОВЕРКОЙ ПРОФИЛЯ ПРИ ВХОДЕ
+// С ПРОВЕРКОЙ ПРОФИЛЯ ПРИ ВХОДЕ И ГОЛОСОВЫМИ СООБЩЕНИЯМИ
 
 // Глобальные переменные
 let currentUserId = null;
@@ -18,6 +18,15 @@ let stageAnswers = {
 let testResults = null;
 let isWaitingForInterpretation = false;
 let interpretationPollingInterval = null;
+
+// ============================================
+// ГОЛОСОВЫЕ ПЕРЕМЕННЫЕ
+// ============================================
+let mediaRecorder = null;
+let audioChunks = [];
+let isRecording = false;
+let recordingStartTime = null;
+let recordingTimer = null;
 
 // ============================================
 // ИНИЦИАЛИЗАЦИЯ ПРИЛОЖЕНИЯ
@@ -40,6 +49,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         // Расширяем на весь экран
         tg.expand();
+        
+        // Настройка темы
+        if (tg.colorScheme === 'dark') {
+            document.body.classList.add('dark');
+        }
     } else {
         // Для локальной разработки
         currentUserId = localStorage.getItem('userId') || 123456789;
@@ -64,6 +78,134 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 // ============================================
+// API ВЫЗОВЫ
+// ============================================
+
+const api = {
+    async request(endpoint, options = {}) {
+        const url = `/api${endpoint}`;
+        const headers = {
+            'Content-Type': 'application/json',
+            ...options.headers
+        };
+        
+        const config = {
+            ...options,
+            headers
+        };
+        
+        try {
+            const response = await fetch(url, config);
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error(`API Error ${endpoint}:`, error);
+            throw error;
+        }
+    },
+    
+    async getUserFullStatus(userId) {
+        return this.request(`/user-status?user_id=${userId}`);
+    },
+    
+    async getUserProfile(userId) {
+        return this.request(`/get-profile?user_id=${userId}`);
+    },
+    
+    async getTestInterpretation(userId) {
+        return this.request(`/get-test-interpretation?user_id=${userId}`);
+    },
+    
+    async saveTestResults(userId, results) {
+        return this.request('/save-test-results', {
+            method: 'POST',
+            body: JSON.stringify({ user_id: userId, results })
+        });
+    },
+    
+    async getTestQuestion(userId, stage, index) {
+        return this.request(`/test/question?user_id=${userId}&stage=${stage}&index=${index}`);
+    },
+    
+    async submitTestAnswer(userId, stage, index, answer, option) {
+        return this.request('/test/answer', {
+            method: 'POST',
+            body: JSON.stringify({ user_id: userId, stage, question_index: index, answer, option })
+        });
+    },
+    
+    async sendQuestion(userId, message, mode = null) {
+        return this.request('/chat/message', {
+            method: 'POST',
+            body: JSON.stringify({ user_id: userId, message, mode })
+        });
+    },
+    
+    async getPsychologistThought(userId) {
+        const response = await this.request(`/thought?user_id=${userId}`);
+        return response.thought;
+    },
+    
+    async getWeekendIdeas(userId) {
+        const response = await this.request(`/ideas?user_id=${userId}`);
+        return response.ideas || [];
+    },
+    
+    async getAvailableModes() {
+        const response = await this.request('/modes');
+        return response.modes || [];
+    },
+    
+    async saveCommunicationMode(userId, mode) {
+        return this.request('/save-mode', {
+            method: 'POST',
+            body: JSON.stringify({ user_id: userId, mode })
+        });
+    },
+    
+    // ============================================
+    // ГОЛОСОВЫЕ API
+    // ============================================
+    
+    async sendVoiceMessage(userId, audioBlob) {
+        const formData = new FormData();
+        formData.append('user_id', userId);
+        formData.append('voice', audioBlob, 'voice.webm');
+        
+        try {
+            const response = await fetch('/api/voice/process', {
+                method: 'POST',
+                body: formData
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('Voice API Error:', error);
+            throw error;
+        }
+    },
+    
+    async textToSpeech(text, mode = 'coach') {
+        const response = await this.request('/tts', {
+            method: 'POST',
+            body: JSON.stringify({ text, mode })
+        });
+        return response;
+    }
+};
+
+// ============================================
+// ЛОКАЛЬНОЕ ХРАНЕНИЕ
+// ============================================
+
+function loadUserName() {
+    return localStorage.getItem(`user_name_${currentUserId}`);
+}
+
+function saveUserName(userId, name) {
+    localStorage.setItem(`user_name_${userId}`, name);
+}
+
+// ============================================
 // ПРОВЕРКА ПРОФИЛЯ ПРИ ВХОДЕ
 // ============================================
 
@@ -72,18 +214,13 @@ async function loadUserProfileOnStart() {
     showLoading('Проверка данных...');
     
     try {
-        // 1. Проверяем статус пользователя через API
         const status = await api.getUserFullStatus(currentUserId);
         console.log('📊 Статус пользователя:', status);
         
         if (status.success) {
-            // Проверяем наличие интерпретации
             if (status.has_interpretation && status.interpretation_ready) {
                 console.log('✅ Найдена готовая интерпретация');
-                
-                // Получаем полный профиль
                 const profile = await api.getUserProfile(currentUserId);
-                
                 if (profile && profile.ai_generated_profile) {
                     hideLoading();
                     showProfileScreen(profile.ai_generated_profile);
@@ -92,19 +229,15 @@ async function loadUserProfileOnStart() {
                 }
             }
             
-            // Проверяем наличие данных теста (без интерпретации)
             if (status.has_profile && !status.has_interpretation) {
                 console.log('📊 Данные теста есть, интерпретация формируется...');
                 hideLoading();
                 showMessage('🧠 Ваш профиль анализируется... Это займет несколько секунд.', 'info');
-                
-                // Начинаем опрос интерпретации
                 startWaitingForInterpretation();
                 return false;
             }
         }
         
-        // Проверяем локальное хранилище
         const localProfile = localStorage.getItem(`profile_${currentUserId}`);
         if (localProfile) {
             console.log('📦 Найден локальный профиль');
@@ -121,7 +254,6 @@ async function loadUserProfileOnStart() {
             }
         }
         
-        // Новый пользователь - показываем приветствие
         console.log('👋 Новый пользователь');
         hideLoading();
         showWelcomeScreen();
@@ -130,35 +262,18 @@ async function loadUserProfileOnStart() {
     } catch (error) {
         console.error('❌ Ошибка загрузки профиля:', error);
         hideLoading();
-        
-        // Проверяем локальное хранилище как fallback
-        const localProfile = localStorage.getItem(`profile_${currentUserId}`);
-        if (localProfile) {
-            try {
-                const profile = JSON.parse(localProfile);
-                if (profile.ai_generated_profile) {
-                    showProfileScreen(profile.ai_generated_profile);
-                    return true;
-                }
-            } catch (e) {}
-        }
-        
         showWelcomeScreen();
         return false;
     }
 }
-
-// ============================================
-// ОЖИДАНИЕ ИНТЕРПРЕТАЦИИ
-// ============================================
 
 function startWaitingForInterpretation() {
     if (isWaitingForInterpretation) return;
     
     isWaitingForInterpretation = true;
     let attempts = 0;
-    const maxAttempts = 30; // 30 попыток
-    const interval = 2000; // 2 секунды
+    const maxAttempts = 30;
+    const interval = 2000;
     
     interpretationPollingInterval = setInterval(async () => {
         attempts++;
@@ -172,7 +287,6 @@ function startWaitingForInterpretation() {
                 clearInterval(interpretationPollingInterval);
                 isWaitingForInterpretation = false;
                 
-                // Сохраняем в локальное хранилище
                 localStorage.setItem(`profile_${currentUserId}`, JSON.stringify({
                     ai_generated_profile: result.interpretation,
                     timestamp: Date.now()
@@ -197,24 +311,16 @@ function startWaitingForInterpretation() {
         }
     }, interval);
     
-    // Показываем индикатор ожидания
     showMessage('🧠 Анализируем ваш профиль... Пожалуйста, подождите.', 'info', true);
 }
 
-// ============================================
-// ОБНОВЛЕНИЕ UI ПОСЛЕ ЗАГРУЗКИ ПРОФИЛЯ
-// ============================================
-
 function updateUIWithProfile() {
-    // Скрываем кнопку "Начать тест"
     const startTestBtn = document.getElementById('startTestBtn');
     if (startTestBtn) startTestBtn.style.display = 'none';
     
-    // Показываем кнопки для работы с профилем
     const profileActions = document.getElementById('profileActions');
     if (profileActions) profileActions.style.display = 'flex';
     
-    // Обновляем навигацию
     const nav = document.querySelector('.bottom-nav');
     if (nav) nav.style.display = 'flex';
 }
@@ -224,10 +330,7 @@ function updateUIWithProfile() {
 // ============================================
 
 async function saveTestResultsToServer() {
-    if (!testResults) {
-        console.error('Нет результатов теста');
-        return false;
-    }
+    if (!testResults) return false;
     
     showLoading('Сохраняем результаты...');
     
@@ -236,7 +339,6 @@ async function saveTestResultsToServer() {
         console.log('📡 Ответ сервера:', response);
         
         if (response.success) {
-            // Сохраняем в локальное хранилище
             localStorage.setItem(`profile_${currentUserId}`, JSON.stringify({
                 profile_data: testResults.profile_data,
                 ai_generated_profile: response.interpretation,
@@ -244,13 +346,11 @@ async function saveTestResultsToServer() {
             }));
             
             if (response.interpretation) {
-                // Интерпретация готова сразу
                 hideLoading();
                 showProfileScreen(response.interpretation);
                 updateUIWithProfile();
                 return true;
             } else {
-                // Интерпретация формируется
                 hideLoading();
                 startWaitingForInterpretation();
                 return true;
@@ -264,14 +364,11 @@ async function saveTestResultsToServer() {
         console.error('❌ Ошибка сохранения:', error);
         hideLoading();
         showMessage('Ошибка соединения. Результаты сохранены локально.', 'warning');
-        
-        // Сохраняем локально
         localStorage.setItem(`profile_${currentUserId}`, JSON.stringify({
             profile_data: testResults.profile_data,
             timestamp: Date.now(),
             pending_sync: true
         }));
-        
         return true;
     }
 }
@@ -287,30 +384,22 @@ function showProfileScreen(interpretation) {
     
     if (!interpretationText) return;
     
-    // Форматируем текст
     let formattedText = interpretation
         .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
         .replace(/\n/g, '<br>');
     
     interpretationText.innerHTML = formattedText;
     
-    // Показываем профиль, скрываем остальное
     if (mainContent) mainContent.style.display = 'none';
     if (profileContent) profileContent.style.display = 'block';
     
-    // Обновляем активную вкладку
     updateActiveTab('profile');
     
-    // Сохраняем в localStorage
     localStorage.setItem(`profile_${currentUserId}`, JSON.stringify({
         ai_generated_profile: interpretation,
         timestamp: Date.now()
     }));
 }
-
-// ============================================
-// ПРИВЕТСТВИЕ ДЛЯ НОВОГО ПОЛЬЗОВАТЕЛЯ
-// ============================================
 
 function showWelcomeScreen() {
     const mainContent = document.getElementById('mainContent');
@@ -321,19 +410,17 @@ function showWelcomeScreen() {
     if (profileContent) profileContent.style.display = 'none';
     if (welcomeContent) welcomeContent.style.display = 'block';
     
-    // Показываем кнопку "Начать тест"
     const startTestBtn = document.getElementById('startTestBtn');
     if (startTestBtn) startTestBtn.style.display = 'block';
 }
 
 // ============================================
-// ЭКРАН ЗАГРУЗКИ
+// UI КОМПОНЕНТЫ
 // ============================================
 
 function showLoading(message = 'Загрузка...') {
     const loadingOverlay = document.getElementById('loadingOverlay');
     const loadingMessage = document.getElementById('loadingMessage');
-    
     if (loadingMessage) loadingMessage.textContent = message;
     if (loadingOverlay) loadingOverlay.classList.add('active');
 }
@@ -342,10 +429,6 @@ function hideLoading() {
     const loadingOverlay = document.getElementById('loadingOverlay');
     if (loadingOverlay) loadingOverlay.classList.remove('active');
 }
-
-// ============================================
-// ПОКАЗ СООБЩЕНИЯ
-// ============================================
 
 function showMessage(message, type = 'info', persistent = false) {
     const toast = document.getElementById('toast');
@@ -365,19 +448,158 @@ function showMessage(message, type = 'info', persistent = false) {
 }
 
 // ============================================
+// ГОЛОСОВЫЕ ФУНКЦИИ
+// ============================================
+
+async function startVoiceRecording() {
+    if (isRecording) {
+        stopVoiceRecording();
+        return;
+    }
+    
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        
+        mediaRecorder = new MediaRecorder(stream, {
+            mimeType: MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/ogg'
+        });
+        audioChunks = [];
+        
+        mediaRecorder.ondataavailable = (event) => {
+            if (event.data.size > 0) {
+                audioChunks.push(event.data);
+            }
+        };
+        
+        mediaRecorder.onstop = async () => {
+            stream.getTracks().forEach(track => track.stop());
+            
+            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            await sendVoiceToServer(audioBlob);
+        };
+        
+        mediaRecorder.start(1000);
+        isRecording = true;
+        recordingStartTime = Date.now();
+        
+        const voiceBtn = document.getElementById('voiceRecordBtn');
+        if (voiceBtn) {
+            voiceBtn.textContent = '⏹️';
+            voiceBtn.classList.add('recording');
+        }
+        
+        startRecordingTimer();
+        
+        setTimeout(() => {
+            if (isRecording) {
+                stopVoiceRecording();
+            }
+        }, 30000);
+        
+    } catch (error) {
+        console.error('❌ Ошибка доступа к микрофону:', error);
+        showMessage('Не удалось получить доступ к микрофону. Проверьте разрешения.', 'error');
+    }
+}
+
+function startRecordingTimer() {
+    const timerElement = document.getElementById('recordingTimer');
+    if (!timerElement) return;
+    
+    if (recordingTimer) clearInterval(recordingTimer);
+    
+    recordingTimer = setInterval(() => {
+        if (isRecording && recordingStartTime) {
+            const elapsed = Math.floor((Date.now() - recordingStartTime) / 1000);
+            timerElement.textContent = `${elapsed}s`;
+            timerElement.style.display = 'inline';
+            
+            if (elapsed >= 30) {
+                timerElement.textContent = '30s';
+            }
+        }
+    }, 1000);
+}
+
+function stopRecordingTimer() {
+    if (recordingTimer) {
+        clearInterval(recordingTimer);
+        recordingTimer = null;
+    }
+    const timerElement = document.getElementById('recordingTimer');
+    if (timerElement) {
+        timerElement.style.display = 'none';
+        timerElement.textContent = '';
+    }
+}
+
+function stopVoiceRecording() {
+    if (mediaRecorder && isRecording) {
+        mediaRecorder.stop();
+        isRecording = false;
+        stopRecordingTimer();
+        
+        const voiceBtn = document.getElementById('voiceRecordBtn');
+        if (voiceBtn) {
+            voiceBtn.textContent = '🎤';
+            voiceBtn.classList.remove('recording');
+        }
+    }
+}
+
+async function sendVoiceToServer(audioBlob) {
+    showLoading('Распознаю речь...');
+    
+    try {
+        const formData = new FormData();
+        formData.append('user_id', currentUserId);
+        formData.append('voice', audioBlob, 'voice.webm');
+        
+        const response = await fetch('/api/voice/process', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            if (result.recognized_text) {
+                addMessageToChat(`🎤 Вы сказали: ${result.recognized_text}`, 'user');
+            }
+            
+            if (result.answer) {
+                addMessageToChat(result.answer, 'bot', result.buttons);
+            }
+            
+            if (result.audio_url) {
+                playAudioResponse(result.audio_url);
+            }
+        } else {
+            addMessageToChat('Не удалось распознать голос. Попробуйте еще раз.', 'bot');
+        }
+    } catch (error) {
+        console.error('❌ Ошибка отправки голоса:', error);
+        addMessageToChat('Ошибка при обработке голосового сообщения. Попробуйте позже.', 'bot');
+    }
+    
+    hideLoading();
+}
+
+function playAudioResponse(audioUrl) {
+    const audio = new Audio(audioUrl);
+    audio.play().catch(e => console.error('Ошибка воспроизведения:', e));
+}
+
+// ============================================
 // НАВИГАЦИЯ
 // ============================================
 
 function setupEventListeners() {
-    // Кнопка "Начать тест"
     const startTestBtn = document.getElementById('startTestBtn');
     if (startTestBtn) {
-        startTestBtn.addEventListener('click', () => {
-            startTest();
-        });
+        startTestBtn.addEventListener('click', () => startTest());
     }
     
-    // Кнопка "Показать профиль"
     const showProfileBtn = document.getElementById('showProfileBtn');
     if (showProfileBtn) {
         showProfileBtn.addEventListener('click', async () => {
@@ -392,51 +614,33 @@ function setupEventListeners() {
         });
     }
     
-    // Кнопка "Пройти тест заново"
     const retestBtn = document.getElementById('retestBtn');
     if (retestBtn) {
-        retestBtn.addEventListener('click', () => {
-            startTest();
-        });
+        retestBtn.addEventListener('click', () => startTest());
     }
     
-    // Навигационные кнопки
+    const voiceRecordBtn = document.getElementById('voiceRecordBtn');
+    if (voiceRecordBtn) {
+        voiceRecordBtn.addEventListener('click', () => startVoiceRecording());
+    }
+    
     const navProfile = document.getElementById('navProfile');
     const navChat = document.getElementById('navChat');
     const navModes = document.getElementById('navModes');
     
-    if (navProfile) {
-        navProfile.addEventListener('click', () => {
-            showProfileFromNav();
-        });
-    }
+    if (navProfile) navProfile.addEventListener('click', () => showProfileFromNav());
+    if (navChat) navChat.addEventListener('click', () => showChatScreen());
+    if (navModes) navModes.addEventListener('click', () => showModesScreen());
     
-    if (navChat) {
-        navChat.addEventListener('click', () => {
-            showChatScreen();
-        });
-    }
-    
-    if (navModes) {
-        navModes.addEventListener('click', () => {
-            showModesScreen();
-        });
-    }
-    
-    // Кнопка отправки сообщения в чате
     const sendBtn = document.getElementById('sendMessageBtn');
     if (sendBtn) {
-        sendBtn.addEventListener('click', () => {
-            sendChatMessage();
-        });
+        sendBtn.addEventListener('click', () => sendChatMessage());
     }
     
     const messageInput = document.getElementById('messageInput');
     if (messageInput) {
         messageInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                sendChatMessage();
-            }
+            if (e.key === 'Enter') sendChatMessage();
         });
     }
 }
@@ -444,7 +648,6 @@ function setupEventListeners() {
 async function showProfileFromNav() {
     showLoading('Загрузка...');
     
-    // Проверяем наличие профиля на сервере
     const status = await api.getUserFullStatus(currentUserId);
     
     if (status.has_interpretation) {
@@ -496,8 +699,6 @@ function showModesScreen() {
     if (modesContent) modesContent.style.display = 'block';
     
     updateActiveTab('modes');
-    
-    // Загружаем режимы
     loadModes();
 }
 
@@ -539,10 +740,8 @@ async function selectMode(mode) {
     
     try {
         const result = await api.saveCommunicationMode(currentUserId, mode);
-        
         if (result.success) {
             showMessage(`Режим ${mode} выбран!`, 'success');
-            // Возвращаемся в чат
             showChatScreen();
         } else {
             showMessage('Ошибка сохранения режима', 'error');
@@ -558,20 +757,15 @@ async function selectMode(mode) {
 async function sendChatMessage() {
     const input = document.getElementById('messageInput');
     const message = input?.value.trim();
-    
     if (!message) return;
     
-    // Очищаем поле ввода
     input.value = '';
-    
-    // Добавляем сообщение пользователя в чат
     addMessageToChat(message, 'user');
     
     showLoading('Думаю...');
     
     try {
         const response = await api.sendQuestion(currentUserId, message);
-        
         if (response.success) {
             addMessageToChat(response.response, 'bot', response.buttons);
         } else {
@@ -591,14 +785,18 @@ function addMessageToChat(text, sender, buttons = null) {
     
     const messageDiv = document.createElement('div');
     messageDiv.className = `message ${sender}`;
+    
+    const formattedText = text
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\n/g, '<br>');
+    
     messageDiv.innerHTML = `
-        <div class="message-text">${text}</div>
+        <div class="message-text">${formattedText}</div>
         ${buttons ? '<div class="message-buttons"></div>' : ''}
     `;
     
     messagesContainer.appendChild(messageDiv);
     
-    // Добавляем кнопки если есть
     if (buttons && buttons.length > 0) {
         const buttonsContainer = messageDiv.querySelector('.message-buttons');
         buttons.forEach(btn => {
@@ -610,46 +808,31 @@ function addMessageToChat(text, sender, buttons = null) {
         });
     }
     
-    // Скроллим вниз
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
 }
 
 function handleChatAction(action, data) {
-    if (action === 'start_test') {
-        startTest();
-    } else if (action === 'show_profile') {
-        showProfileFromNav();
-    } else if (action === 'show_thoughts') {
-        showPsychologistThought();
-    } else if (action === 'show_weekend') {
-        showWeekendIdeas();
-    }
+    if (action === 'start_test') startTest();
+    else if (action === 'show_profile') showProfileFromNav();
+    else if (action === 'show_thoughts') showPsychologistThought();
+    else if (action === 'show_weekend') showWeekendIdeas();
 }
 
 async function showPsychologistThought() {
     showLoading('Загрузка...');
-    
     try {
         const thought = await api.getPsychologistThought(currentUserId);
-        if (thought) {
-            addMessageToChat(thought, 'bot');
-        } else {
-            addMessageToChat('Мысли психолога еще не сгенерированы.', 'bot');
-        }
+        addMessageToChat(thought || 'Мысли психолога еще не сгенерированы.', 'bot');
     } catch (error) {
-        console.error('Ошибка:', error);
         addMessageToChat('Ошибка загрузки мыслей психолога', 'bot');
     }
-    
     hideLoading();
 }
 
 async function showWeekendIdeas() {
     showLoading('Генерация идей...');
-    
     try {
         const ideas = await api.getWeekendIdeas(currentUserId);
-        
         if (ideas && ideas.length > 0) {
             let text = '🎨 **Идеи на выходные:**\n\n';
             ideas.forEach((idea, idx) => {
@@ -660,10 +843,8 @@ async function showWeekendIdeas() {
             addMessageToChat('Пока нет идей для вас. Пройдите тест, чтобы я лучше понимал ваш профиль.', 'bot');
         }
     } catch (error) {
-        console.error('Ошибка:', error);
         addMessageToChat('Ошибка генерации идей', 'bot');
     }
-    
     hideLoading();
 }
 
@@ -686,14 +867,12 @@ function updateActiveTab(tab) {
 // ============================================
 
 function startTest() {
-    // Сбрасываем данные теста
     currentStage = 1;
     currentQuestionIndex = 0;
     allAnswers = [];
     stageAnswers = {1: [], 2: [], 3: [], 4: [], 5: []};
     testResults = null;
     
-    // Показываем экран теста
     const welcomeContent = document.getElementById('welcomeContent');
     const profileContent = document.getElementById('profileContent');
     const mainContent = document.getElementById('mainContent');
@@ -708,7 +887,6 @@ function startTest() {
     if (modesContent) modesContent.style.display = 'none';
     if (testContent) testContent.style.display = 'block';
     
-    // Загружаем первый вопрос
     loadQuestion(1, 0);
 }
 
@@ -720,7 +898,6 @@ async function loadQuestion(stage, index) {
     
     try {
         const question = await api.getTestQuestion(currentUserId, stage, index);
-        
         if (question.success) {
             displayQuestion(question);
         } else {
@@ -741,23 +918,16 @@ function displayQuestion(question) {
     const stageIndicator = document.getElementById('stageIndicator');
     
     if (questionText) questionText.textContent = question.text;
+    if (stageIndicator) stageIndicator.textContent = `Этап ${question.stage}/5`;
     
-    // Обновляем индикатор этапа
-    if (stageIndicator) {
-        stageIndicator.textContent = `Этап ${question.stage}/5`;
-    }
-    
-    // Обновляем прогресс
     if (progress) {
         const percent = ((question.index + 1) / question.total) * 100;
         progress.style.width = `${percent}%`;
         progress.textContent = `${question.index + 1}/${question.total}`;
     }
     
-    // Отображаем варианты ответов
     if (optionsContainer && question.options) {
         optionsContainer.innerHTML = '';
-        
         question.options.forEach((option, idx) => {
             const button = document.createElement('button');
             button.className = 'option-btn';
@@ -772,16 +942,9 @@ async function submitAnswer(stage, index, answerText, answerValue) {
     showLoading('Сохранение...');
     
     try {
-        const result = await api.submitTestAnswer(
-            currentUserId, 
-            stage, 
-            index, 
-            answerText, 
-            answerValue
-        );
+        const result = await api.submitTestAnswer(currentUserId, stage, index, answerText, answerValue);
         
         if (result.success) {
-            // Сохраняем локально
             allAnswers.push({
                 stage: stage,
                 question_index: index,
@@ -796,17 +959,14 @@ async function submitAnswer(stage, index, answerText, answerValue) {
                 option: answerValue
             });
             
-            // Переходим к следующему вопросу
             const nextIndex = index + 1;
-            const stageTotal = getStageQuestionsCount(stage);
+            const stageTotal = {1: 4, 2: 6, 3: 24, 4: 12, 5: 8}[stage];
             
             if (nextIndex < stageTotal) {
                 await loadQuestion(stage, nextIndex);
             } else if (stage < 5) {
-                // Переход к следующему этапу
                 await loadQuestion(stage + 1, 0);
             } else {
-                // Тест завершен
                 await completeTest();
             }
         } else {
@@ -820,15 +980,9 @@ async function submitAnswer(stage, index, answerText, answerValue) {
     hideLoading();
 }
 
-function getStageQuestionsCount(stage) {
-    const counts = {1: 4, 2: 6, 3: 24, 4: 12, 5: 8};
-    return counts[stage] || 4;
-}
-
 async function completeTest() {
     showLoading('Формируем результаты...');
     
-    // Формируем результаты
     testResults = {
         all_answers: allAnswers,
         stage1_answers: stageAnswers[1],
@@ -844,36 +998,18 @@ async function completeTest() {
         completed_at: new Date().toISOString()
     };
     
-    // Сохраняем на сервер
     const saved = await saveTestResultsToServer();
     
     if (saved) {
-        // Показываем результат
         const testContent = document.getElementById('testContent');
         if (testContent) testContent.style.display = 'none';
-        
-        // Если интерпретация уже есть, показываем её
-        const localProfile = localStorage.getItem(`profile_${currentUserId}`);
-        if (localProfile) {
-            try {
-                const profile = JSON.parse(localProfile);
-                if (profile.ai_generated_profile) {
-                    showProfileScreen(profile.ai_generated_profile);
-                }
-            } catch (e) {}
-        }
     }
     
     hideLoading();
 }
 
-// ============================================
-// РАСЧЕТ РЕЗУЛЬТАТОВ
-// ============================================
-
 function calculatePerceptionType() {
     const scores = { visual: 0, kinesthetic: 0, auditory: 0, digital: 0 };
-    
     stageAnswers[1].forEach(answer => {
         const option = answer.option;
         if (option === 'visual') scores.visual++;
@@ -881,43 +1017,20 @@ function calculatePerceptionType() {
         if (option === 'auditory') scores.auditory++;
         if (option === 'digital') scores.digital++;
     });
-    
     const maxType = Object.keys(scores).reduce((a, b) => scores[a] > scores[b] ? a : b);
-    const types = {
-        visual: 'ВИЗУАЛЬНЫЙ',
-        kinesthetic: 'КИНЕСТЕТИЧЕСКИЙ',
-        auditory: 'АУДИАЛЬНЫЙ',
-        digital: 'ДИГИТАЛЬНЫЙ'
-    };
-    
+    const types = { visual: 'ВИЗУАЛЬНЫЙ', kinesthetic: 'КИНЕСТЕТИЧЕСКИЙ', auditory: 'АУДИАЛЬНЫЙ', digital: 'ДИГИТАЛЬНЫЙ' };
     return types[maxType] || 'СМЕШАННЫЙ';
 }
 
 function calculateThinkingLevel() {
     let sum = 0;
-    stageAnswers[2].forEach(answer => {
-        sum += parseInt(answer.option) || 3;
-    });
+    stageAnswers[2].forEach(answer => sum += parseInt(answer.option) || 3);
     return Math.round(sum / stageAnswers[2].length) || 5;
 }
 
 function calculateBehavioralLevels() {
-    const levels = {
-        "СБ": [],
-        "ТФ": [],
-        "УБ": [],
-        "ЧВ": []
-    };
-    
-    const vectorMap = {
-        0: "СБ", 1: "СБ", 2: "СБ",
-        3: "ТФ", 4: "ТФ", 5: "ТФ",
-        6: "УБ", 7: "УБ", 8: "УБ",
-        9: "ЧВ", 10: "ЧВ", 11: "ЧВ",
-        12: "СБ", 13: "ТФ", 14: "УБ", 15: "ЧВ",
-        16: "СБ", 17: "ТФ", 18: "УБ", 19: "ЧВ",
-        20: "СБ", 21: "ТФ", 22: "УБ", 23: "ЧВ"
-    };
+    const levels = { "СБ": [], "ТФ": [], "УБ": [], "ЧВ": [] };
+    const vectorMap = { 0: "СБ", 1: "СБ", 2: "СБ", 3: "ТФ", 4: "ТФ", 5: "ТФ", 6: "УБ", 7: "УБ", 8: "УБ", 9: "ЧВ", 10: "ЧВ", 11: "ЧВ", 12: "СБ", 13: "ТФ", 14: "УБ", 15: "ЧВ", 16: "СБ", 17: "ТФ", 18: "УБ", 19: "ЧВ", 20: "СБ", 21: "ТФ", 22: "УБ", 23: "ЧВ" };
     
     stageAnswers[3].forEach((answer, idx) => {
         const vector = vectorMap[idx] || "СБ";
@@ -926,21 +1039,15 @@ function calculateBehavioralLevels() {
         levels[vector].push(value);
     });
     
-    // Заполняем недостающие значения
     for (const key of ["СБ", "ТФ", "УБ", "ЧВ"]) {
-        if (!levels[key] || levels[key].length === 0) {
-            levels[key] = [3, 3, 3, 3, 3, 3];
-        }
-        while (levels[key].length < 6) {
-            levels[key].push(3);
-        }
+        if (!levels[key] || levels[key].length === 0) levels[key] = [3, 3, 3, 3, 3, 3];
+        while (levels[key].length < 6) levels[key].push(3);
     }
-    
     return levels;
 }
 
 function calculateDeepPatterns() {
-    const patterns = {
+    return {
         attachment: "надежный",
         defense_mechanisms: ["интеллектуализация"],
         core_fears: ["потеря контроля"],
@@ -952,29 +1059,10 @@ function calculateDeepPatterns() {
         criticism_response: "анализ",
         core_issue: "поиск смысла"
     };
-    
-    // Если есть ответы на этапе 5, используем их
-    if (stageAnswers[5] && stageAnswers[5].length > 0) {
-        const lastAnswer = stageAnswers[5][stageAnswers[5].length - 1];
-        if (lastAnswer.option) {
-            const deepMap = {
-                "a": { attachment: "тревожный", defense_mechanisms: ["проекция"], core_issue: "страх близости" },
-                "b": { attachment: "избегающий", defense_mechanisms: ["отрицание"], core_issue: "страх отвержения" },
-                "c": { attachment: "надежный", defense_mechanisms: ["сублимация"], core_issue: "самореализация" },
-                "d": { attachment: "дезорганизованный", defense_mechanisms: ["расщепление"], core_issue: "нестабильность" }
-            };
-            if (deepMap[lastAnswer.option]) {
-                Object.assign(patterns, deepMap[lastAnswer.option]);
-            }
-        }
-    }
-    
-    return patterns;
 }
 
 function calculateProfileData() {
     const behavioral = calculateBehavioralLevels();
-    
     const sb = Math.round(behavioral["СБ"].reduce((s, v) => s + v, 0) / 6 * 10) / 10;
     const tf = Math.round(behavioral["ТФ"].reduce((s, v) => s + v, 0) / 6 * 10) / 10;
     const ub = Math.round(behavioral["УБ"].reduce((s, v) => s + v, 0) / 6 * 10) / 10;
@@ -998,3 +1086,4 @@ window.showProfile = showProfileFromNav;
 window.showChat = showChatScreen;
 window.showModes = showModesScreen;
 window.sendChatMessage = sendChatMessage;
+window.startVoiceRecording = startVoiceRecording;

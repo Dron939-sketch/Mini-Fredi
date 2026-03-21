@@ -113,30 +113,33 @@ const App = {
     // ========== API ВЫЗОВЫ ==========
     
     async apiCall(endpoint, params = {}, method = 'GET') {
-        const url = new URL(endpoint, window.location.origin);
-        if (method === 'GET') {
-            Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
+    // 🔥 ИСПРАВЛЕНО: используем правильный URL бэкенда
+    const API_BASE_URL = 'https://max-bot-1-ywpz.onrender.com';
+    const url = new URL(endpoint, API_BASE_URL);
+    
+    if (method === 'GET') {
+        Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
+    }
+    
+    try {
+        const options = {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        };
+        if (method === 'POST') {
+            options.body = JSON.stringify(params);
         }
         
-        try {
-            const options = {
-                method: method,
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            };
-            if (method === 'POST') {
-                options.body = JSON.stringify(params);
-            }
-            
-            const response = await fetch(url.toString(), options);
-            const data = await response.json();
-            return data;
-        } catch (error) {
-            console.error(`API Error ${endpoint}:`, error);
-            return { success: false, error: error.message };
-        }
-    },
+        const response = await fetch(url.toString(), options);
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error(`API Error ${endpoint}:`, error);
+        return { success: false, error: error.message };
+    }
+}
     
     async sendQuestionToServer(question) {
         return this.apiCall('/api/chat/message', {

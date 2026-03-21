@@ -1,734 +1,1000 @@
-// ========== api.js ==========
-// ПОЛНАЯ ВЕРСИЯ С РЕАЛЬНЫМИ ВЫЗОВАМИ API
-// ВКЛЮЧАЕТ ВСЕ ЭНДПОИНТЫ ДЛЯ ТЕСТА И ИНТЕРПРЕТАЦИИ
-// АДАПТИРОВАН ДЛЯ БЭКЕНДА НА RENDER
-// ДОБАВЛЕН: getSmartQuestions
+// ========== app.js ==========
+// ПОЛНАЯ ВЕРСИЯ МИНИ-ПРИЛОЖЕНИЯ
+// С ПРОВЕРКОЙ ПРОФИЛЯ ПРИ ВХОДЕ
 
-// URL вашего бэкенда на Render
-const API_BASE = 'https://max-bot-1-ywpz.onrender.com';
-
-// ============================================
-// ОСНОВНОЙ API ОБЪЕКТ
-// ============================================
-
-const api = {
-    /**
-     * Получает статус пользователя (базовая версия)
-     * @param {number|string} userId - ID пользователя
-     * @returns {Promise<Object>} Статус пользователя
-     */
-    async getUserStatus(userId) {
-        try {
-            const response = await fetch(`${API_BASE}/api/user-data?user_id=${userId}`);
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            const data = await response.json();
-            
-            // Преобразуем ответ бэкенда в формат, ожидаемый фронтендом
-            return {
-                user_id: data.user_id,
-                user_name: data.user_name || 'друг',
-                context_complete: false,
-                test_completed: data.has_profile || false,
-                first_visit: !data.has_profile,
-                profile_data: data.profile_data || null
-            };
-        } catch (error) {
-            console.error('❌ Ошибка получения статуса пользователя:', error);
-            return {
-                user_id: userId,
-                user_name: localStorage.getItem('userName') || 'друг',
-                context_complete: false,
-                test_completed: false,
-                first_visit: true,
-                profile_data: null
-            };
-        }
-    },
-    
-    /**
-     * Получает полный статус пользователя (расширенная версия)
-     * @param {number|string} userId - ID пользователя
-     * @returns {Promise<Object>} Полный статус пользователя
-     */
-    async getUserFullStatus(userId) {
-        try {
-            const response = await fetch(`${API_BASE}/api/user-status?user_id=${userId}`);
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            return await response.json();
-        } catch (error) {
-            console.error('❌ Ошибка получения полного статуса:', error);
-            return {
-                success: false,
-                has_profile: false,
-                has_interpretation: false,
-                test_completed: false,
-                interpretation_ready: false,
-                profile_code: null
-            };
-        }
-    },
-    
-    /**
-     * Получает погоду для города
-     * @param {string} city - Название города
-     * @returns {Promise<Object|null>} Данные о погоде
-     */
-    async getWeather(city) {
-        try {
-            // Бэкенд может предоставить погоду через отдельный эндпоинт
-            // Пока возвращаем тестовые данные
-            return {
-                icon: '🌤',
-                description: 'тестовый режим',
-                temp: '+15',
-                feels_like: '+13',
-                humidity: 65,
-                wind: 3
-            };
-        } catch (error) {
-            console.error('❌ Ошибка получения погоды:', error);
-            return null;
-        }
-    },
-    
-    /**
-     * Сохраняет контекст пользователя (город, пол, возраст)
-     * @param {number|string} userId - ID пользователя
-     * @param {Object} contextData - Данные контекста
-     * @returns {Promise<Object>} Результат сохранения
-     */
-    async saveContext(userId, contextData) {
-        try {
-            const response = await fetch(`${API_BASE}/api/save-context`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    user_id: userId,
-                    context: contextData
-                })
-            });
-            
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            
-            return await response.json();
-        } catch (error) {
-            console.error('❌ Ошибка сохранения контекста:', error);
-            return { success: false, error: error.message };
-        }
-    },
-    
-    /**
-     * Получает профиль пользователя
-     * @param {number|string} userId - ID пользователя
-     * @returns {Promise<Object|null>} Профиль пользователя
-     */
-    async getUserProfile(userId) {
-        try {
-            const response = await fetch(`${API_BASE}/api/get-profile?user_id=${userId}`);
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            return await response.json();
-        } catch (error) {
-            console.error('❌ Ошибка получения профиля:', error);
-            return null;
-        }
-    },
-    
-    /**
-     * Сохраняет профиль пользователя
-     * @param {number|string} userId - ID пользователя
-     * @param {Object} profileData - Данные профиля
-     * @returns {Promise<Object>} Результат сохранения
-     */
-    async saveUserProfile(userId, profileData) {
-        try {
-            const response = await fetch(`${API_BASE}/api/save-profile`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    user_id: userId,
-                    profile: profileData
-                })
-            });
-            
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            
-            return await response.json();
-        } catch (error) {
-            console.error('❌ Ошибка сохранения профиля:', error);
-            return { success: false, error: error.message };
-        }
-    },
-    
-    /**
-     * Получает мысли психолога
-     * @param {number|string} userId - ID пользователя
-     * @returns {Promise<string|null>} Текст мыслей психолога
-     */
-    async getPsychologistThought(userId) {
-        try {
-            const response = await fetch(`${API_BASE}/api/thought?user_id=${userId}`);
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            const data = await response.json();
-            return data.thought;
-        } catch (error) {
-            console.error('❌ Ошибка получения мыслей:', error);
-            return null;
-        }
-    },
-    
-    /**
-     * Получает идеи на выходные
-     * @param {number|string} userId - ID пользователя
-     * @returns {Promise<Array>} Список идей
-     */
-    async getWeekendIdeas(userId) {
-        try {
-            const response = await fetch(`${API_BASE}/api/ideas?user_id=${userId}`);
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            const data = await response.json();
-            return data.ideas || [];
-        } catch (error) {
-            console.error('❌ Ошибка получения идей:', error);
-            return [];
-        }
-    },
-    
-    /**
-     * Получает прогресс теста
-     * @param {number|string} userId - ID пользователя
-     * @returns {Promise<Object>} Прогресс теста
-     */
-    async getTestProgress(userId) {
-        try {
-            const response = await fetch(`${API_BASE}/api/get-test-progress?user_id=${userId}`);
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            return await response.json();
-        } catch (error) {
-            console.error('❌ Ошибка получения прогресса теста:', error);
-            return {
-                stage1_complete: false,
-                stage2_complete: false,
-                stage3_complete: false,
-                stage4_complete: false,
-                stage5_complete: false,
-                answers_count: 0,
-                current_stage: 1
-            };
-        }
-    },
-    
-    /**
-     * Сохраняет прогресс теста (поэтапно)
-     * @param {number|string} userId - ID пользователя
-     * @param {number} stage - Номер этапа
-     * @param {Array} answers - Ответы на вопросы этапа
-     * @returns {Promise<Object>} Результат сохранения
-     */
-    async saveTestProgress(userId, stage, answers) {
-        try {
-            const response = await fetch(`${API_BASE}/api/save-test-progress`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    user_id: userId,
-                    stage: stage,
-                    answers: answers
-                })
-            });
-            
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            
-            return await response.json();
-        } catch (error) {
-            console.error('❌ Ошибка сохранения прогресса теста:', error);
-            return { success: false, error: error.message };
-        }
-    },
-    
-    /**
-     * Сохраняет полные результаты теста (после завершения всех этапов)
-     * @param {number|string} userId - ID пользователя
-     * @param {Object} results - Полные результаты теста
-     * @returns {Promise<Object>} Результат сохранения
-     */
-    async saveTestResults(userId, results) {
-        try {
-            const response = await fetch(`${API_BASE}/api/save-test-results`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    user_id: userId,
-                    results: results
-                })
-            });
-            
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            
-            return await response.json();
-        } catch (error) {
-            console.error('❌ Ошибка сохранения результатов теста:', error);
-            return { success: false, error: error.message };
-        }
-    },
-    
-    /**
-     * Получает интерпретацию теста (опрашивает сервер)
-     * @param {number|string} userId - ID пользователя
-     * @returns {Promise<Object>} Интерпретация теста
-     */
-    async getTestInterpretation(userId) {
-        try {
-            const response = await fetch(`${API_BASE}/api/get-test-interpretation?user_id=${userId}`);
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            return await response.json();
-        } catch (error) {
-            console.error('❌ Ошибка получения интерпретации:', error);
-            return { success: false, ready: false, interpretation: null };
-        }
-    },
-    
-    /**
-     * Сохраняет режим общения
-     * @param {number|string} userId - ID пользователя
-     * @param {string} mode - Режим (coach, psychologist, trainer)
-     * @returns {Promise<Object>} Результат сохранения
-     */
-    async saveCommunicationMode(userId, mode) {
-        try {
-            const response = await fetch(`${API_BASE}/api/save-mode`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    user_id: userId,
-                    mode: mode
-                })
-            });
-            
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            
-            return await response.json();
-        } catch (error) {
-            console.error('❌ Ошибка сохранения режима:', error);
-            return { success: false, error: error.message };
-        }
-    },
-    
-    /**
-     * Синхронизирует все данные
-     * @param {number|string} userId - ID пользователя
-     * @param {Object} data - Данные для синхронизации
-     * @returns {Promise<Object>} Результат синхронизации
-     */
-    async syncAllData(userId, data) {
-        try {
-            const response = await fetch(`${API_BASE}/api/sync`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    user_id: userId,
-                    data: data
-                })
-            });
-            
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            
-            return await response.json();
-        } catch (error) {
-            console.error('❌ Ошибка синхронизации:', error);
-            return { success: false, error: error.message };
-        }
-    },
-    
-    /**
-     * Получает вопрос теста
-     * @param {number|string} userId - ID пользователя
-     * @param {number} stage - Номер этапа
-     * @param {number} index - Индекс вопроса
-     * @returns {Promise<Object>} Вопрос теста
-     */
-    async getTestQuestion(userId, stage, index) {
-        try {
-            const response = await fetch(`${API_BASE}/api/test/question?user_id=${userId}&stage=${stage}&index=${index}`);
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            return await response.json();
-        } catch (error) {
-            console.error('❌ Ошибка получения вопроса:', error);
-            return { success: false, error: error.message };
-        }
-    },
-    
-    /**
-     * Отправляет ответ на вопрос теста
-     * @param {number|string} userId - ID пользователя
-     * @param {number} stage - Номер этапа
-     * @param {number} questionIndex - Индекс вопроса
-     * @param {string} answer - Текст ответа
-     * @param {string} option - ID выбранного варианта
-     * @returns {Promise<Object>} Результат отправки
-     */
-    async submitTestAnswer(userId, stage, questionIndex, answer, option) {
-        try {
-            const response = await fetch(`${API_BASE}/api/test/answer`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    user_id: userId,
-                    stage: stage,
-                    question_index: questionIndex,
-                    answer: answer,
-                    option: option
-                })
-            });
-            
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            
-            return await response.json();
-        } catch (error) {
-            console.error('❌ Ошибка отправки ответа:', error);
-            return { success: false, error: error.message };
-        }
-    },
-    
-    /**
-     * Получает результаты этапа теста
-     * @param {number|string} userId - ID пользователя
-     * @param {number} stage - Номер этапа
-     * @returns {Promise<Object>} Результаты этапа
-     */
-    async getTestStageResults(userId, stage) {
-        try {
-            const response = await fetch(`${API_BASE}/api/test/results?user_id=${userId}&stage=${stage}`);
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            return await response.json();
-        } catch (error) {
-            console.error('❌ Ошибка получения результатов этапа:', error);
-            return { success: false, error: error.message };
-        }
-    },
-    
-    /**
-     * Отправляет вопрос в чат
-     * @param {number|string} userId - ID пользователя
-     * @param {string} question - Текст вопроса
-     * @param {string} mode - Режим общения (опционально)
-     * @returns {Promise<Object>} Ответ от бота
-     */
-    async sendQuestion(userId, question, mode = null) {
-        try {
-            const response = await fetch(`${API_BASE}/api/chat/message`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    user_id: userId,
-                    message: question,
-                    mode: mode
-                })
-            });
-            
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            
-            const data = await response.json();
-            
-            return {
-                success: data.success,
-                response: data.response || 'Я вас слушаю. Расскажите подробнее.',
-                mode: data.mode,
-                analysis: data.analysis,
-                buttons: data.buttons
-            };
-        } catch (error) {
-            console.error('❌ Ошибка отправки вопроса:', error);
-            return {
-                success: false,
-                response: 'Извините, произошла ошибка. Попробуйте позже.',
-                error: error.message
-            };
-        }
-    },
-    
-    /**
-     * Выполняет действие в чате (тест, профиль, идеи и т.д.)
-     * @param {number|string} userId - ID пользователя
-     * @param {string} action - Действие
-     * @param {Object} data - Дополнительные данные
-     * @returns {Promise<Object>} Результат выполнения
-     */
-    async performAction(userId, action, data = {}) {
-        try {
-            const response = await fetch(`${API_BASE}/api/chat/action`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    user_id: userId,
-                    action: action,
-                    data: data
-                })
-            });
-            
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            
-            return await response.json();
-        } catch (error) {
-            console.error('❌ Ошибка выполнения действия:', error);
-            return { success: false, error: error.message };
-        }
-    },
-    
-    /**
-     * Получает цели для пользователя
-     * @param {number|string} userId - ID пользователя
-     * @param {string} mode - Режим (coach, psychologist, trainer)
-     * @returns {Promise<Array>} Список целей
-     */
-    async getGoals(userId, mode = 'coach') {
-        try {
-            const response = await fetch(`${API_BASE}/api/goals?user_id=${userId}&mode=${mode}`);
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            const data = await response.json();
-            return data.goals || [];
-        } catch (error) {
-            console.error('❌ Ошибка получения целей:', error);
-            // Возвращаем тестовые цели
-            return [
-                { id: 'fear_work', name: 'Проработать страхи', time: '3-4 недели', difficulty: 'medium', emoji: '🛡️' },
-                { id: 'money_blocks', name: 'Проработать денежные блоки', time: '3-4 недели', difficulty: 'medium', emoji: '💰' },
-                { id: 'meaning', name: 'Найти смысл и предназначение', time: '4-6 недель', difficulty: 'hard', emoji: '🎯' }
-            ];
-        }
-    },
-    
-    /**
-     * Получает список доступных режимов
-     * @returns {Promise<Array>} Список режимов
-     */
-    async getAvailableModes() {
-        try {
-            const response = await fetch(`${API_BASE}/api/modes`);
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            const data = await response.json();
-            return data.modes || [];
-        } catch (error) {
-            console.error('❌ Ошибка получения режимов:', error);
-            return [
-                { id: 'coach', name: 'КОУЧ', emoji: '🔮', description: 'Задавать открытые вопросы, отражать мысли, направлять.' },
-                { id: 'psychologist', name: 'ПСИХОЛОГ', emoji: '🧠', description: 'Исследовать глубинные паттерны, защитные механизмы.' },
-                { id: 'trainer', name: 'ТРЕНЕР', emoji: '⚡', description: 'Формировать поведенческие навыки, давать инструменты.' }
-            ];
-        }
-    },
-    
-    /**
-     * 🔥 НОВЫЙ МЕТОД: Получает умные вопросы для пользователя
-     * @param {number|string} userId - ID пользователя
-     * @returns {Promise<Object>} Объект с вопросами
-     */
-    async getSmartQuestions(userId) {
-        try {
-            const response = await fetch(`${API_BASE}/api/smart-questions?user_id=${userId}`);
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            return await response.json();
-        } catch (error) {
-            console.error('❌ Ошибка получения умных вопросов:', error);
-            // Возвращаем локальные вопросы по умолчанию
-            return {
-                success: false,
-                questions: [
-                    'Как перестать бояться конфликтов?',
-                    'Как увеличить доход без новых вложений?',
-                    'С чего начать изменения?',
-                    'Почему я злюсь внутри, но молчу?',
-                    'Как защищать границы без агрессии?'
-                ]
-            };
-        }
-    },
-    
-    /**
-     * Проверяет работу базы данных
-     * @returns {Promise<Object>} Статус базы данных
-     */
-    async checkDatabase() {
-        try {
-            const response = await fetch(`${API_BASE}/api/check-db`);
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            return await response.json();
-        } catch (error) {
-            console.error('❌ Ошибка проверки БД:', error);
-            return { status: 'error', message: error.message };
-        }
-    },
-    
-    /**
-     * Получает логи пользователя (только для админов)
-     * @param {number|string} userId - ID пользователя
-     * @returns {Promise<Object>} Логи пользователя
-     */
-    async getUserLogs(userId) {
-        try {
-            const response = await fetch(`${API_BASE}/api/logs/${userId}`);
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            return await response.json();
-        } catch (error) {
-            console.error('❌ Ошибка получения логов:', error);
-            return { error: error.message };
-        }
-    },
-    
-    /**
-     * Получает историю чата
-     * @param {number|string} userId - ID пользователя
-     * @param {number} limit - Количество сообщений
-     * @returns {Promise<Object>} История чата
-     */
-    async getChatHistory(userId, limit = 50) {
-        try {
-            const response = await fetch(`${API_BASE}/api/chat/history?user_id=${userId}&limit=${limit}`);
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            return await response.json();
-        } catch (error) {
-            console.error('❌ Ошибка получения истории:', error);
-            return { success: false, history: [], error: error.message };
-        }
-    },
-    
-    /**
-     * Проверяет соединение с бэкендом
-     * @returns {Promise<boolean>} Доступность бэкенда
-     */
-    async healthCheck() {
-        try {
-            const response = await fetch(`${API_BASE}/health`);
-            return response.ok;
-        } catch (error) {
-            console.error('❌ Health check failed:', error);
-            return false;
-        }
-    }
+// Глобальные переменные
+let currentUserId = null;
+let currentUser = null;
+let currentStage = 1;
+let currentQuestionIndex = 0;
+let allAnswers = [];
+let stageAnswers = {
+    1: [],
+    2: [],
+    3: [],
+    4: [],
+    5: []
 };
+let testResults = null;
+let isWaitingForInterpretation = false;
+let interpretationPollingInterval = null;
 
 // ============================================
-// ЭКСПОРТ API
+// ИНИЦИАЛИЗАЦИЯ ПРИЛОЖЕНИЯ
 // ============================================
 
-// Делаем API доступным глобально
-window.api = api;
-
-// Для отладки
-console.log('✅ API инициализирован, базовый URL:', API_BASE);
-console.log('✅ Доступные методы:', Object.keys(api));
-
-// Проверяем соединение при загрузке
-api.healthCheck().then(isAvailable => {
-    if (isAvailable) {
-        console.log('✅ Соединение с бэкендом установлено');
+document.addEventListener('DOMContentLoaded', async () => {
+    console.log('🚀 Мини-приложение запущено');
+    
+    // Получаем ID пользователя из Telegram WebApp
+    if (window.Telegram && window.Telegram.WebApp) {
+        const tg = window.Telegram.WebApp;
+        currentUserId = tg.initDataUnsafe?.user?.id;
+        currentUser = tg.initDataUnsafe?.user;
+        
+        console.log('👤 Пользователь Telegram:', currentUserId, currentUser);
+        
+        // Показываем кнопку "Закрыть"
+        tg.MainButton.hide();
+        tg.BackButton.hide();
+        
+        // Расширяем на весь экран
+        tg.expand();
     } else {
-        console.warn('⚠️ Бэкенд недоступен, работаем в офлайн-режиме');
+        // Для локальной разработки
+        currentUserId = localStorage.getItem('userId') || 123456789;
+        currentUser = { id: currentUserId, first_name: 'Тестовый' };
+        console.warn('⚠️ Telegram WebApp не найден, используем тестовый режим');
     }
+    
+    // Загружаем сохраненное имя
+    const savedName = loadUserName();
+    if (savedName) {
+        document.getElementById('userNameDisplay').textContent = savedName;
+    } else if (currentUser?.first_name) {
+        document.getElementById('userNameDisplay').textContent = currentUser.first_name;
+        saveUserName(currentUserId, currentUser.first_name);
+    }
+    
+    // Загружаем профиль пользователя при старте
+    await loadUserProfileOnStart();
+    
+    // Настраиваем обработчики
+    setupEventListeners();
 });
 
 // ============================================
-// ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ДЛЯ РАБОТЫ С API
+// ПРОВЕРКА ПРОФИЛЯ ПРИ ВХОДЕ
 // ============================================
 
-/**
- * Сохраняет имя пользователя в localStorage и на сервер
- * @param {number|string} userId - ID пользователя
- * @param {string} name - Имя пользователя
- * @returns {Promise<boolean>} Успех сохранения
- */
-async function saveUserName(userId, name) {
-    if (!name || name.trim() === '') return false;
-    
-    const trimmedName = name.trim();
-    localStorage.setItem('userName', trimmedName);
-    
-    // Сохраняем в контекст
-    const context = App?.userContext || {};
-    context.name = trimmedName;
+async function loadUserProfileOnStart() {
+    console.log('🔄 Загрузка профиля пользователя', currentUserId);
+    showLoading('Проверка данных...');
     
     try {
-        await api.saveContext(userId, { name: trimmedName });
-        return true;
+        // 1. Проверяем статус пользователя через API
+        const status = await api.getUserFullStatus(currentUserId);
+        console.log('📊 Статус пользователя:', status);
+        
+        if (status.success) {
+            // Проверяем наличие интерпретации
+            if (status.has_interpretation && status.interpretation_ready) {
+                console.log('✅ Найдена готовая интерпретация');
+                
+                // Получаем полный профиль
+                const profile = await api.getUserProfile(currentUserId);
+                
+                if (profile && profile.ai_generated_profile) {
+                    hideLoading();
+                    showProfileScreen(profile.ai_generated_profile);
+                    updateUIWithProfile();
+                    return true;
+                }
+            }
+            
+            // Проверяем наличие данных теста (без интерпретации)
+            if (status.has_profile && !status.has_interpretation) {
+                console.log('📊 Данные теста есть, интерпретация формируется...');
+                hideLoading();
+                showMessage('🧠 Ваш профиль анализируется... Это займет несколько секунд.', 'info');
+                
+                // Начинаем опрос интерпретации
+                startWaitingForInterpretation();
+                return false;
+            }
+        }
+        
+        // Проверяем локальное хранилище
+        const localProfile = localStorage.getItem(`profile_${currentUserId}`);
+        if (localProfile) {
+            console.log('📦 Найден локальный профиль');
+            try {
+                const profile = JSON.parse(localProfile);
+                if (profile.ai_generated_profile) {
+                    hideLoading();
+                    showProfileScreen(profile.ai_generated_profile);
+                    updateUIWithProfile();
+                    return true;
+                }
+            } catch (e) {
+                console.warn('Ошибка парсинга локального профиля:', e);
+            }
+        }
+        
+        // Новый пользователь - показываем приветствие
+        console.log('👋 Новый пользователь');
+        hideLoading();
+        showWelcomeScreen();
+        return false;
+        
     } catch (error) {
-        console.warn('⚠️ Не удалось сохранить имя на сервере:', error);
-        return true; // Всё равно считаем успехом, так как в localStorage сохранили
+        console.error('❌ Ошибка загрузки профиля:', error);
+        hideLoading();
+        
+        // Проверяем локальное хранилище как fallback
+        const localProfile = localStorage.getItem(`profile_${currentUserId}`);
+        if (localProfile) {
+            try {
+                const profile = JSON.parse(localProfile);
+                if (profile.ai_generated_profile) {
+                    showProfileScreen(profile.ai_generated_profile);
+                    return true;
+                }
+            } catch (e) {}
+        }
+        
+        showWelcomeScreen();
+        return false;
     }
 }
 
-/**
- * Загружает сохраненное имя пользователя
- * @returns {string|null} Имя пользователя
- */
-function loadUserName() {
-    return localStorage.getItem('userName');
+// ============================================
+// ОЖИДАНИЕ ИНТЕРПРЕТАЦИИ
+// ============================================
+
+function startWaitingForInterpretation() {
+    if (isWaitingForInterpretation) return;
+    
+    isWaitingForInterpretation = true;
+    let attempts = 0;
+    const maxAttempts = 30; // 30 попыток
+    const interval = 2000; // 2 секунды
+    
+    interpretationPollingInterval = setInterval(async () => {
+        attempts++;
+        console.log(`📡 Проверка интерпретации (${attempts}/${maxAttempts})...`);
+        
+        try {
+            const result = await api.getTestInterpretation(currentUserId);
+            
+            if (result.success && result.ready && result.interpretation) {
+                console.log('✅ Интерпретация получена!');
+                clearInterval(interpretationPollingInterval);
+                isWaitingForInterpretation = false;
+                
+                // Сохраняем в локальное хранилище
+                localStorage.setItem(`profile_${currentUserId}`, JSON.stringify({
+                    ai_generated_profile: result.interpretation,
+                    timestamp: Date.now()
+                }));
+                
+                hideLoading();
+                showProfileScreen(result.interpretation);
+                updateUIWithProfile();
+                return;
+            }
+            
+            if (attempts >= maxAttempts) {
+                console.warn('⚠️ Таймаут ожидания интерпретации');
+                clearInterval(interpretationPollingInterval);
+                isWaitingForInterpretation = false;
+                hideLoading();
+                showMessage('Интерпретация формируется дольше обычного. Попробуйте обновить страницу позже.', 'warning');
+                showWelcomeScreen();
+            }
+        } catch (error) {
+            console.error('❌ Ошибка при опросе интерпретации:', error);
+        }
+    }, interval);
+    
+    // Показываем индикатор ожидания
+    showMessage('🧠 Анализируем ваш профиль... Пожалуйста, подождите.', 'info', true);
 }
 
-// Экспортируем вспомогательные функции
-window.saveUserName = saveUserName;
-window.loadUserName = loadUserName;
+// ============================================
+// ОБНОВЛЕНИЕ UI ПОСЛЕ ЗАГРУЗКИ ПРОФИЛЯ
+// ============================================
+
+function updateUIWithProfile() {
+    // Скрываем кнопку "Начать тест"
+    const startTestBtn = document.getElementById('startTestBtn');
+    if (startTestBtn) startTestBtn.style.display = 'none';
+    
+    // Показываем кнопки для работы с профилем
+    const profileActions = document.getElementById('profileActions');
+    if (profileActions) profileActions.style.display = 'flex';
+    
+    // Обновляем навигацию
+    const nav = document.querySelector('.bottom-nav');
+    if (nav) nav.style.display = 'flex';
+}
+
+// ============================================
+// СОХРАНЕНИЕ РЕЗУЛЬТАТОВ ТЕСТА
+// ============================================
+
+async function saveTestResultsToServer() {
+    if (!testResults) {
+        console.error('Нет результатов теста');
+        return false;
+    }
+    
+    showLoading('Сохраняем результаты...');
+    
+    try {
+        const response = await api.saveTestResults(currentUserId, testResults);
+        console.log('📡 Ответ сервера:', response);
+        
+        if (response.success) {
+            // Сохраняем в локальное хранилище
+            localStorage.setItem(`profile_${currentUserId}`, JSON.stringify({
+                profile_data: testResults.profile_data,
+                ai_generated_profile: response.interpretation,
+                timestamp: Date.now()
+            }));
+            
+            if (response.interpretation) {
+                // Интерпретация готова сразу
+                hideLoading();
+                showProfileScreen(response.interpretation);
+                updateUIWithProfile();
+                return true;
+            } else {
+                // Интерпретация формируется
+                hideLoading();
+                startWaitingForInterpretation();
+                return true;
+            }
+        } else {
+            hideLoading();
+            showMessage('Ошибка сохранения результатов. Попробуйте еще раз.', 'error');
+            return false;
+        }
+    } catch (error) {
+        console.error('❌ Ошибка сохранения:', error);
+        hideLoading();
+        showMessage('Ошибка соединения. Результаты сохранены локально.', 'warning');
+        
+        // Сохраняем локально
+        localStorage.setItem(`profile_${currentUserId}`, JSON.stringify({
+            profile_data: testResults.profile_data,
+            timestamp: Date.now(),
+            pending_sync: true
+        }));
+        
+        return true;
+    }
+}
+
+// ============================================
+// ЭКРАН ПРОФИЛЯ
+// ============================================
+
+function showProfileScreen(interpretation) {
+    const mainContent = document.getElementById('mainContent');
+    const profileContent = document.getElementById('profileContent');
+    const interpretationText = document.getElementById('interpretationText');
+    
+    if (!interpretationText) return;
+    
+    // Форматируем текст
+    let formattedText = interpretation
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\n/g, '<br>');
+    
+    interpretationText.innerHTML = formattedText;
+    
+    // Показываем профиль, скрываем остальное
+    if (mainContent) mainContent.style.display = 'none';
+    if (profileContent) profileContent.style.display = 'block';
+    
+    // Обновляем активную вкладку
+    updateActiveTab('profile');
+    
+    // Сохраняем в localStorage
+    localStorage.setItem(`profile_${currentUserId}`, JSON.stringify({
+        ai_generated_profile: interpretation,
+        timestamp: Date.now()
+    }));
+}
+
+// ============================================
+// ПРИВЕТСТВИЕ ДЛЯ НОВОГО ПОЛЬЗОВАТЕЛЯ
+// ============================================
+
+function showWelcomeScreen() {
+    const mainContent = document.getElementById('mainContent');
+    const profileContent = document.getElementById('profileContent');
+    const welcomeContent = document.getElementById('welcomeContent');
+    
+    if (mainContent) mainContent.style.display = 'none';
+    if (profileContent) profileContent.style.display = 'none';
+    if (welcomeContent) welcomeContent.style.display = 'block';
+    
+    // Показываем кнопку "Начать тест"
+    const startTestBtn = document.getElementById('startTestBtn');
+    if (startTestBtn) startTestBtn.style.display = 'block';
+}
+
+// ============================================
+// ЭКРАН ЗАГРУЗКИ
+// ============================================
+
+function showLoading(message = 'Загрузка...') {
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    const loadingMessage = document.getElementById('loadingMessage');
+    
+    if (loadingMessage) loadingMessage.textContent = message;
+    if (loadingOverlay) loadingOverlay.classList.add('active');
+}
+
+function hideLoading() {
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    if (loadingOverlay) loadingOverlay.classList.remove('active');
+}
+
+// ============================================
+// ПОКАЗ СООБЩЕНИЯ
+// ============================================
+
+function showMessage(message, type = 'info', persistent = false) {
+    const toast = document.getElementById('toast');
+    const toastMessage = document.getElementById('toastMessage');
+    
+    if (!toast || !toastMessage) return;
+    
+    toastMessage.textContent = message;
+    toast.className = `toast ${type}`;
+    toast.classList.add('show');
+    
+    if (!persistent) {
+        setTimeout(() => {
+            toast.classList.remove('show');
+        }, 3000);
+    }
+}
+
+// ============================================
+// НАВИГАЦИЯ
+// ============================================
+
+function setupEventListeners() {
+    // Кнопка "Начать тест"
+    const startTestBtn = document.getElementById('startTestBtn');
+    if (startTestBtn) {
+        startTestBtn.addEventListener('click', () => {
+            startTest();
+        });
+    }
+    
+    // Кнопка "Показать профиль"
+    const showProfileBtn = document.getElementById('showProfileBtn');
+    if (showProfileBtn) {
+        showProfileBtn.addEventListener('click', async () => {
+            showLoading('Загрузка профиля...');
+            const profile = await api.getUserProfile(currentUserId);
+            if (profile && profile.ai_generated_profile) {
+                showProfileScreen(profile.ai_generated_profile);
+            } else {
+                showMessage('Профиль еще не готов', 'warning');
+            }
+            hideLoading();
+        });
+    }
+    
+    // Кнопка "Пройти тест заново"
+    const retestBtn = document.getElementById('retestBtn');
+    if (retestBtn) {
+        retestBtn.addEventListener('click', () => {
+            startTest();
+        });
+    }
+    
+    // Навигационные кнопки
+    const navProfile = document.getElementById('navProfile');
+    const navChat = document.getElementById('navChat');
+    const navModes = document.getElementById('navModes');
+    
+    if (navProfile) {
+        navProfile.addEventListener('click', () => {
+            showProfileFromNav();
+        });
+    }
+    
+    if (navChat) {
+        navChat.addEventListener('click', () => {
+            showChatScreen();
+        });
+    }
+    
+    if (navModes) {
+        navModes.addEventListener('click', () => {
+            showModesScreen();
+        });
+    }
+    
+    // Кнопка отправки сообщения в чате
+    const sendBtn = document.getElementById('sendMessageBtn');
+    if (sendBtn) {
+        sendBtn.addEventListener('click', () => {
+            sendChatMessage();
+        });
+    }
+    
+    const messageInput = document.getElementById('messageInput');
+    if (messageInput) {
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendChatMessage();
+            }
+        });
+    }
+}
+
+async function showProfileFromNav() {
+    showLoading('Загрузка...');
+    
+    // Проверяем наличие профиля на сервере
+    const status = await api.getUserFullStatus(currentUserId);
+    
+    if (status.has_interpretation) {
+        const profile = await api.getUserProfile(currentUserId);
+        if (profile && profile.ai_generated_profile) {
+            showProfileScreen(profile.ai_generated_profile);
+        }
+    } else if (status.has_profile) {
+        showMessage('Интерпретация формируется...', 'info');
+        startWaitingForInterpretation();
+    } else {
+        showWelcomeScreen();
+    }
+    
+    hideLoading();
+}
+
+function showChatScreen() {
+    const mainContent = document.getElementById('mainContent');
+    const profileContent = document.getElementById('profileContent');
+    const welcomeContent = document.getElementById('welcomeContent');
+    const testContent = document.getElementById('testContent');
+    const chatContent = document.getElementById('chatContent');
+    const modesContent = document.getElementById('modesContent');
+    
+    if (mainContent) mainContent.style.display = 'none';
+    if (profileContent) profileContent.style.display = 'none';
+    if (welcomeContent) welcomeContent.style.display = 'none';
+    if (testContent) testContent.style.display = 'none';
+    if (modesContent) modesContent.style.display = 'none';
+    if (chatContent) chatContent.style.display = 'block';
+    
+    updateActiveTab('chat');
+}
+
+function showModesScreen() {
+    const mainContent = document.getElementById('mainContent');
+    const profileContent = document.getElementById('profileContent');
+    const welcomeContent = document.getElementById('welcomeContent');
+    const testContent = document.getElementById('testContent');
+    const chatContent = document.getElementById('chatContent');
+    const modesContent = document.getElementById('modesContent');
+    
+    if (mainContent) mainContent.style.display = 'none';
+    if (profileContent) profileContent.style.display = 'none';
+    if (welcomeContent) welcomeContent.style.display = 'none';
+    if (testContent) testContent.style.display = 'none';
+    if (chatContent) chatContent.style.display = 'none';
+    if (modesContent) modesContent.style.display = 'block';
+    
+    updateActiveTab('modes');
+    
+    // Загружаем режимы
+    loadModes();
+}
+
+async function loadModes() {
+    const modesList = document.getElementById('modesList');
+    if (!modesList) return;
+    
+    showLoading('Загрузка режимов...');
+    
+    try {
+        const modes = await api.getAvailableModes();
+        modesList.innerHTML = '';
+        
+        for (const mode of modes) {
+            const modeCard = document.createElement('div');
+            modeCard.className = 'mode-card';
+            modeCard.innerHTML = `
+                <div class="mode-emoji">${mode.emoji}</div>
+                <div class="mode-name">${mode.name}</div>
+                <div class="mode-description">${mode.description}</div>
+                <button class="mode-select-btn" data-mode="${mode.id}">Выбрать</button>
+            `;
+            
+            const selectBtn = modeCard.querySelector('.mode-select-btn');
+            selectBtn.addEventListener('click', () => selectMode(mode.id));
+            
+            modesList.appendChild(modeCard);
+        }
+    } catch (error) {
+        console.error('Ошибка загрузки режимов:', error);
+        modesList.innerHTML = '<p>Ошибка загрузки режимов</p>';
+    }
+    
+    hideLoading();
+}
+
+async function selectMode(mode) {
+    showLoading('Сохранение режима...');
+    
+    try {
+        const result = await api.saveCommunicationMode(currentUserId, mode);
+        
+        if (result.success) {
+            showMessage(`Режим ${mode} выбран!`, 'success');
+            // Возвращаемся в чат
+            showChatScreen();
+        } else {
+            showMessage('Ошибка сохранения режима', 'error');
+        }
+    } catch (error) {
+        console.error('Ошибка:', error);
+        showMessage('Ошибка соединения', 'error');
+    }
+    
+    hideLoading();
+}
+
+async function sendChatMessage() {
+    const input = document.getElementById('messageInput');
+    const message = input?.value.trim();
+    
+    if (!message) return;
+    
+    // Очищаем поле ввода
+    input.value = '';
+    
+    // Добавляем сообщение пользователя в чат
+    addMessageToChat(message, 'user');
+    
+    showLoading('Думаю...');
+    
+    try {
+        const response = await api.sendQuestion(currentUserId, message);
+        
+        if (response.success) {
+            addMessageToChat(response.response, 'bot', response.buttons);
+        } else {
+            addMessageToChat('Извините, произошла ошибка. Попробуйте позже.', 'bot');
+        }
+    } catch (error) {
+        console.error('Ошибка:', error);
+        addMessageToChat('Ошибка соединения. Попробуйте позже.', 'bot');
+    }
+    
+    hideLoading();
+}
+
+function addMessageToChat(text, sender, buttons = null) {
+    const messagesContainer = document.getElementById('chatMessages');
+    if (!messagesContainer) return;
+    
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${sender}`;
+    messageDiv.innerHTML = `
+        <div class="message-text">${text}</div>
+        ${buttons ? '<div class="message-buttons"></div>' : ''}
+    `;
+    
+    messagesContainer.appendChild(messageDiv);
+    
+    // Добавляем кнопки если есть
+    if (buttons && buttons.length > 0) {
+        const buttonsContainer = messageDiv.querySelector('.message-buttons');
+        buttons.forEach(btn => {
+            const button = document.createElement('button');
+            button.className = 'chat-btn';
+            button.textContent = btn.text;
+            button.onclick = () => handleChatAction(btn.action, btn.data);
+            buttonsContainer.appendChild(button);
+        });
+    }
+    
+    // Скроллим вниз
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+function handleChatAction(action, data) {
+    if (action === 'start_test') {
+        startTest();
+    } else if (action === 'show_profile') {
+        showProfileFromNav();
+    } else if (action === 'show_thoughts') {
+        showPsychologistThought();
+    } else if (action === 'show_weekend') {
+        showWeekendIdeas();
+    }
+}
+
+async function showPsychologistThought() {
+    showLoading('Загрузка...');
+    
+    try {
+        const thought = await api.getPsychologistThought(currentUserId);
+        if (thought) {
+            addMessageToChat(thought, 'bot');
+        } else {
+            addMessageToChat('Мысли психолога еще не сгенерированы.', 'bot');
+        }
+    } catch (error) {
+        console.error('Ошибка:', error);
+        addMessageToChat('Ошибка загрузки мыслей психолога', 'bot');
+    }
+    
+    hideLoading();
+}
+
+async function showWeekendIdeas() {
+    showLoading('Генерация идей...');
+    
+    try {
+        const ideas = await api.getWeekendIdeas(currentUserId);
+        
+        if (ideas && ideas.length > 0) {
+            let text = '🎨 **Идеи на выходные:**\n\n';
+            ideas.forEach((idea, idx) => {
+                text += `${idx + 1}. ${idea.title || idea.description}\n`;
+            });
+            addMessageToChat(text, 'bot');
+        } else {
+            addMessageToChat('Пока нет идей для вас. Пройдите тест, чтобы я лучше понимал ваш профиль.', 'bot');
+        }
+    } catch (error) {
+        console.error('Ошибка:', error);
+        addMessageToChat('Ошибка генерации идей', 'bot');
+    }
+    
+    hideLoading();
+}
+
+function updateActiveTab(tab) {
+    const navProfile = document.getElementById('navProfile');
+    const navChat = document.getElementById('navChat');
+    const navModes = document.getElementById('navModes');
+    
+    if (navProfile) navProfile.classList.remove('active');
+    if (navChat) navChat.classList.remove('active');
+    if (navModes) navModes.classList.remove('active');
+    
+    if (tab === 'profile' && navProfile) navProfile.classList.add('active');
+    if (tab === 'chat' && navChat) navChat.classList.add('active');
+    if (tab === 'modes' && navModes) navModes.classList.add('active');
+}
+
+// ============================================
+// ТЕСТ
+// ============================================
+
+function startTest() {
+    // Сбрасываем данные теста
+    currentStage = 1;
+    currentQuestionIndex = 0;
+    allAnswers = [];
+    stageAnswers = {1: [], 2: [], 3: [], 4: [], 5: []};
+    testResults = null;
+    
+    // Показываем экран теста
+    const welcomeContent = document.getElementById('welcomeContent');
+    const profileContent = document.getElementById('profileContent');
+    const mainContent = document.getElementById('mainContent');
+    const testContent = document.getElementById('testContent');
+    const chatContent = document.getElementById('chatContent');
+    const modesContent = document.getElementById('modesContent');
+    
+    if (welcomeContent) welcomeContent.style.display = 'none';
+    if (profileContent) profileContent.style.display = 'none';
+    if (mainContent) mainContent.style.display = 'none';
+    if (chatContent) chatContent.style.display = 'none';
+    if (modesContent) modesContent.style.display = 'none';
+    if (testContent) testContent.style.display = 'block';
+    
+    // Загружаем первый вопрос
+    loadQuestion(1, 0);
+}
+
+async function loadQuestion(stage, index) {
+    currentStage = stage;
+    currentQuestionIndex = index;
+    
+    showLoading('Загрузка вопроса...');
+    
+    try {
+        const question = await api.getTestQuestion(currentUserId, stage, index);
+        
+        if (question.success) {
+            displayQuestion(question);
+        } else {
+            showMessage('Ошибка загрузки вопроса', 'error');
+        }
+    } catch (error) {
+        console.error('Ошибка:', error);
+        showMessage('Ошибка соединения', 'error');
+    }
+    
+    hideLoading();
+}
+
+function displayQuestion(question) {
+    const questionText = document.getElementById('questionText');
+    const optionsContainer = document.getElementById('optionsContainer');
+    const progress = document.getElementById('testProgress');
+    const stageIndicator = document.getElementById('stageIndicator');
+    
+    if (questionText) questionText.textContent = question.text;
+    
+    // Обновляем индикатор этапа
+    if (stageIndicator) {
+        stageIndicator.textContent = `Этап ${question.stage}/5`;
+    }
+    
+    // Обновляем прогресс
+    if (progress) {
+        const percent = ((question.index + 1) / question.total) * 100;
+        progress.style.width = `${percent}%`;
+        progress.textContent = `${question.index + 1}/${question.total}`;
+    }
+    
+    // Отображаем варианты ответов
+    if (optionsContainer && question.options) {
+        optionsContainer.innerHTML = '';
+        
+        question.options.forEach((option, idx) => {
+            const button = document.createElement('button');
+            button.className = 'option-btn';
+            button.textContent = `${option.id}. ${option.text}`;
+            button.onclick = () => submitAnswer(question.stage, question.index, option.text, option.value);
+            optionsContainer.appendChild(button);
+        });
+    }
+}
+
+async function submitAnswer(stage, index, answerText, answerValue) {
+    showLoading('Сохранение...');
+    
+    try {
+        const result = await api.submitTestAnswer(
+            currentUserId, 
+            stage, 
+            index, 
+            answerText, 
+            answerValue
+        );
+        
+        if (result.success) {
+            // Сохраняем локально
+            allAnswers.push({
+                stage: stage,
+                question_index: index,
+                answer: answerText,
+                option: answerValue,
+                timestamp: new Date().toISOString()
+            });
+            
+            stageAnswers[stage].push({
+                index: index,
+                answer: answerText,
+                option: answerValue
+            });
+            
+            // Переходим к следующему вопросу
+            const nextIndex = index + 1;
+            const stageTotal = getStageQuestionsCount(stage);
+            
+            if (nextIndex < stageTotal) {
+                await loadQuestion(stage, nextIndex);
+            } else if (stage < 5) {
+                // Переход к следующему этапу
+                await loadQuestion(stage + 1, 0);
+            } else {
+                // Тест завершен
+                await completeTest();
+            }
+        } else {
+            showMessage('Ошибка сохранения ответа', 'error');
+        }
+    } catch (error) {
+        console.error('Ошибка:', error);
+        showMessage('Ошибка соединения', 'error');
+    }
+    
+    hideLoading();
+}
+
+function getStageQuestionsCount(stage) {
+    const counts = {1: 4, 2: 6, 3: 24, 4: 12, 5: 8};
+    return counts[stage] || 4;
+}
+
+async function completeTest() {
+    showLoading('Формируем результаты...');
+    
+    // Формируем результаты
+    testResults = {
+        all_answers: allAnswers,
+        stage1_answers: stageAnswers[1],
+        stage2_answers: stageAnswers[2],
+        stage3_answers: stageAnswers[3],
+        stage4_answers: stageAnswers[4],
+        stage5_answers: stageAnswers[5],
+        perception_type: calculatePerceptionType(),
+        thinking_level: calculateThinkingLevel(),
+        behavioral_levels: calculateBehavioralLevels(),
+        deep_patterns: calculateDeepPatterns(),
+        profile_data: calculateProfileData(),
+        completed_at: new Date().toISOString()
+    };
+    
+    // Сохраняем на сервер
+    const saved = await saveTestResultsToServer();
+    
+    if (saved) {
+        // Показываем результат
+        const testContent = document.getElementById('testContent');
+        if (testContent) testContent.style.display = 'none';
+        
+        // Если интерпретация уже есть, показываем её
+        const localProfile = localStorage.getItem(`profile_${currentUserId}`);
+        if (localProfile) {
+            try {
+                const profile = JSON.parse(localProfile);
+                if (profile.ai_generated_profile) {
+                    showProfileScreen(profile.ai_generated_profile);
+                }
+            } catch (e) {}
+        }
+    }
+    
+    hideLoading();
+}
+
+// ============================================
+// РАСЧЕТ РЕЗУЛЬТАТОВ
+// ============================================
+
+function calculatePerceptionType() {
+    const scores = { visual: 0, kinesthetic: 0, auditory: 0, digital: 0 };
+    
+    stageAnswers[1].forEach(answer => {
+        const option = answer.option;
+        if (option === 'visual') scores.visual++;
+        if (option === 'kinesthetic') scores.kinesthetic++;
+        if (option === 'auditory') scores.auditory++;
+        if (option === 'digital') scores.digital++;
+    });
+    
+    const maxType = Object.keys(scores).reduce((a, b) => scores[a] > scores[b] ? a : b);
+    const types = {
+        visual: 'ВИЗУАЛЬНЫЙ',
+        kinesthetic: 'КИНЕСТЕТИЧЕСКИЙ',
+        auditory: 'АУДИАЛЬНЫЙ',
+        digital: 'ДИГИТАЛЬНЫЙ'
+    };
+    
+    return types[maxType] || 'СМЕШАННЫЙ';
+}
+
+function calculateThinkingLevel() {
+    let sum = 0;
+    stageAnswers[2].forEach(answer => {
+        sum += parseInt(answer.option) || 3;
+    });
+    return Math.round(sum / stageAnswers[2].length) || 5;
+}
+
+function calculateBehavioralLevels() {
+    const levels = {
+        "СБ": [],
+        "ТФ": [],
+        "УБ": [],
+        "ЧВ": []
+    };
+    
+    const vectorMap = {
+        0: "СБ", 1: "СБ", 2: "СБ",
+        3: "ТФ", 4: "ТФ", 5: "ТФ",
+        6: "УБ", 7: "УБ", 8: "УБ",
+        9: "ЧВ", 10: "ЧВ", 11: "ЧВ",
+        12: "СБ", 13: "ТФ", 14: "УБ", 15: "ЧВ",
+        16: "СБ", 17: "ТФ", 18: "УБ", 19: "ЧВ",
+        20: "СБ", 21: "ТФ", 22: "УБ", 23: "ЧВ"
+    };
+    
+    stageAnswers[3].forEach((answer, idx) => {
+        const vector = vectorMap[idx] || "СБ";
+        const value = parseInt(answer.option) || 3;
+        if (!levels[vector]) levels[vector] = [];
+        levels[vector].push(value);
+    });
+    
+    // Заполняем недостающие значения
+    for (const key of ["СБ", "ТФ", "УБ", "ЧВ"]) {
+        if (!levels[key] || levels[key].length === 0) {
+            levels[key] = [3, 3, 3, 3, 3, 3];
+        }
+        while (levels[key].length < 6) {
+            levels[key].push(3);
+        }
+    }
+    
+    return levels;
+}
+
+function calculateDeepPatterns() {
+    const patterns = {
+        attachment: "надежный",
+        defense_mechanisms: ["интеллектуализация"],
+        core_fears: ["потеря контроля"],
+        core_beliefs: ["я справлюсь"],
+        stress_response: "анализ",
+        core_values: ["честность"],
+        anger_style: "анализ",
+        social_role: "наблюдатель",
+        criticism_response: "анализ",
+        core_issue: "поиск смысла"
+    };
+    
+    // Если есть ответы на этапе 5, используем их
+    if (stageAnswers[5] && stageAnswers[5].length > 0) {
+        const lastAnswer = stageAnswers[5][stageAnswers[5].length - 1];
+        if (lastAnswer.option) {
+            const deepMap = {
+                "a": { attachment: "тревожный", defense_mechanisms: ["проекция"], core_issue: "страх близости" },
+                "b": { attachment: "избегающий", defense_mechanisms: ["отрицание"], core_issue: "страх отвержения" },
+                "c": { attachment: "надежный", defense_mechanisms: ["сублимация"], core_issue: "самореализация" },
+                "d": { attachment: "дезорганизованный", defense_mechanisms: ["расщепление"], core_issue: "нестабильность" }
+            };
+            if (deepMap[lastAnswer.option]) {
+                Object.assign(patterns, deepMap[lastAnswer.option]);
+            }
+        }
+    }
+    
+    return patterns;
+}
+
+function calculateProfileData() {
+    const behavioral = calculateBehavioralLevels();
+    
+    const sb = Math.round(behavioral["СБ"].reduce((s, v) => s + v, 0) / 6 * 10) / 10;
+    const tf = Math.round(behavioral["ТФ"].reduce((s, v) => s + v, 0) / 6 * 10) / 10;
+    const ub = Math.round(behavioral["УБ"].reduce((s, v) => s + v, 0) / 6 * 10) / 10;
+    const chv = Math.round(behavioral["ЧВ"].reduce((s, v) => s + v, 0) / 6 * 10) / 10;
+    
+    return {
+        display_name: `СБ-${Math.round(sb)}_ТФ-${Math.round(tf)}_УБ-${Math.round(ub)}_ЧВ-${Math.round(chv)}`,
+        sb_level: sb,
+        tf_level: tf,
+        ub_level: ub,
+        chv_level: chv
+    };
+}
+
+// ============================================
+// ЭКСПОРТ ГЛОБАЛЬНЫХ ФУНКЦИЙ
+// ============================================
+
+window.startTest = startTest;
+window.showProfile = showProfileFromNav;
+window.showChat = showChatScreen;
+window.showModes = showModesScreen;
+window.sendChatMessage = sendChatMessage;

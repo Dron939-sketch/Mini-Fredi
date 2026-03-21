@@ -1,756 +1,1105 @@
-// app.js - Главный файл приложения
-const App = {
-    userId: null,
-    userName: 'Гость',
-    userContext: { city: null, gender: null, age: null },
-    profileData: null,
-    currentMode: 'coach',
-    isWaitingForInterpretation: false,
-    interpretationPollingInterval: null,
+// ========== app.js ==========
+// ПОЛНАЯ ВЕРСИЯ МИНИ-ПРИЛОЖЕНИЯ
+// С ПРОВЕРКОЙ ПРОФИЛЯ ПРИ ВХОДЕ И ГОЛОСОВЫМИ СООБЩЕНИЯМИ
+
+// Глобальные переменные
+let currentUserId = null;
+let currentUser = null;
+let currentStage = 1;
+let currentQuestionIndex = 0;
+let allAnswers = [];
+let stageAnswers = {
+    1: [],
+    2: [],
+    3: [],
+    4: [],
+    5: []
+};
+let testResults = null;
+let isWaitingForInterpretation = false;
+let interpretationPollingInterval = null;
+
+// ============================================
+// ГОЛОСОВЫЕ ПЕРЕМЕННЫЕ
+// ============================================
+let mediaRecorder = null;
+let audioChunks = [];
+let isRecording = false;
+let recordingStartTime = null;
+let recordingTimer = null;
+
+// ============================================
+// ИНИЦИАЛИЗАЦИЯ ПРИЛОЖЕНИЯ
+// ============================================
+
+document.addEventListener('DOMContentLoaded', async () => {
+    console.log('🚀 Мини-приложение запущено');
     
-    async init() {
-        console.log('🚀 App: инициализация');
-        
-        // 1. Получаем данные пользователя
-        const authData = await Auth.init();
-        this.userId = authData.userId;
-        this.userName = authData.userName;
-        UI.updateUserNameInUI(this.userName);
-        
-        // 2. Загружаем данные с бэкенда
-        await this.loadUserData();
-        
-        // 3. Показываем нужный экран
-        await this.checkUserStatus();
-        
-        // 4. Настраиваем обработчики
-        this.setupEventListeners();
-        
-        // 5. Инициализируем голосовой ввод
-        Voice.init();
-        
-        console.log('✅ App инициализирован, userId:', this.userId);
-    },
+    // 🔥 ПОЛУЧАЕМ USER_ID ИЗ maxContext (устанавливается в index.html)
+    if (window.maxContext && window.maxContext.user_id) {
+        currentUserId = window.maxContext.user_id;
+        currentUser = { id: currentUserId, first_name: 'Пользователь' };
+        console.log('👤 Пользователь из maxContext:', currentUserId);
+    }
     
-    async loadUserData() {
+    // Если нет из maxContext, пробуем из Telegram WebApp
+    if (!currentUserId && window.Telegram && window.Telegram.WebApp) {
+        const tg = window.Telegram.WebApp;
+        currentUserId = tg.initDataUnsafe?.user?.id;
+        currentUser = tg.initDataUnsafe?.user;
+        console.log('👤 Пользователь из Telegram:', currentUserId);
+        
+        tg.MainButton.hide();
+        tg.BackButton.hide();
+        tg.expand();
+        
+        if (tg.colorScheme === 'dark') {
+            document.body.classList.add('dark');
+        }
+    }
+    
+    // Если все еще нет - тестовый режим
+    if (!currentUserId) {
+        const savedUserId = localStorage.getItem('fredi_user_id');
+        if (savedUserId) {
+            currentUserId = savedUserId;
+            console.log('💾 Загружен user_id из localStorage:', currentUserId);
+        } else {
+            currentUserId = localStorage.getItem('userId') || 213102077;
+            console.warn('⚠️ Используем тестовый user_id:', currentUserId);
+        }
+        currentUser = { id: currentUserId, first_name: 'Тестовый' };
+    }
+    
+    // Сохраняем в localStorage
+    localStorage.setItem('fredi_user_id', currentUserId);
+    
+    // Загружаем сохраненное имя
+    const savedName = loadUserName();
+    if (savedName) {
+        const nameElement = document.getElementById('userNameDisplay');
+        if (nameElement) nameElement.textContent = savedName;
+    } else if (currentUser?.first_name) {
+        const nameElement = document.getElementById('userNameDisplay');
+        if (nameElement) nameElement.textContent = currentUser.first_name;
+        saveUserName(currentUserId, currentUser.first_name);
+    }
+    
+    // Обновляем имя в приветствии
+    const userNamePlaceholder = document.getElementById('userNamePlaceholder');
+    if (userNamePlaceholder) {
+        userNamePlaceholder.textContent = currentUser?.first_name || 'друг';
+    }
+    
+    // Загружаем профиль пользователя при старте
+    await loadUserProfileOnStart();
+    
+    // Настраиваем обработчики
+    setupEventListeners();
+});
+
+// ============================================
+// API ВЫЗОВЫ
+// ============================================
+
+const api = {
+    async request(endpoint, options = {}) {
+        const url = `/api${endpoint}`;
+        const headers = {
+            'Content-Type': 'application/json',
+            ...options.headers
+        };
+        
+        const config = {
+            ...options,
+            headers
+        };
+        
         try {
-            const status = await API.getUserFullStatus(this.userId);
-            console.log('📊 Статус пользователя:', status);
-            
-            if (status.success && status.has_interpretation && status.interpretation_ready) {
-                const profile = await API.getUserProfile(this.userId);
-                if (profile?.ai_generated_profile) {
-                    this.profileData = profile.profile_data;
-                    return;
-                }
-            }
-            
-            if (status.success && status.has_profile && !status.has_interpretation) {
-                this.startWaitingForInterpretation();
-                return;
-            }
-            
-            const localProfile = localStorage.getItem(`profile_${this.userId}`);
-            if (localProfile) {
-                const profile = JSON.parse(localProfile);
-                if (profile.ai_generated_profile) {
-                    this.profileData = profile.profile_data;
-                }
-            }
+            const response = await fetch(url, config);
+            const data = await response.json();
+            return data;
         } catch (error) {
-            console.error('❌ Ошибка загрузки данных:', error);
+            console.error(`API Error ${endpoint}:`, error);
+            throw error;
         }
     },
     
-    startWaitingForInterpretation() {
-        if (this.isWaitingForInterpretation) return;
-        
-        this.isWaitingForInterpretation = true;
-        let attempts = 0;
-        const maxAttempts = 30;
-        
-        this.interpretationPollingInterval = setInterval(async () => {
-            attempts++;
-            console.log(`📡 Проверка интерпретации (${attempts}/${maxAttempts})...`);
-            
-            try {
-                const result = await API.getTestInterpretation(this.userId);
-                
-                if (result.success && result.ready && result.interpretation) {
-                    clearInterval(this.interpretationPollingInterval);
-                    this.isWaitingForInterpretation = false;
-                    
-                    localStorage.setItem(`profile_${this.userId}`, JSON.stringify({
-                        ai_generated_profile: result.interpretation,
-                        timestamp: Date.now()
-                    }));
-                    
-                    await this.showFinalProfile();
-                    return;
-                }
-                
-                if (attempts >= maxAttempts) {
-                    clearInterval(this.interpretationPollingInterval);
-                    this.isWaitingForInterpretation = false;
-                    UI.showToast('Интерпретация формируется дольше обычного', 'warning');
-                    this.showCompleteScreen();
-                }
-            } catch (error) {
-                console.error('Ошибка:', error);
-            }
-        }, 2000);
-        
-        UI.showToast('🧠 Анализируем ваш профиль...', 'info', 5000);
-    },
-    
-    async checkUserStatus() {
-        if (this.profileData) {
-            await this.showFinalProfile();
-            return;
-        }
-        
-        const hasContext = this.userContext.city || this.userContext.gender || this.userContext.age;
-        if (!hasContext) {
-            this.showOnboardingScreen1();
-        } else {
-            this.showCompleteScreen();
+    async getUserFullStatus(userId) {
+        try {
+            const response = await this.request(`/user-status?user_id=${userId}`);
+            console.log('📊 Статус пользователя:', response);
+            return response;
+        } catch (error) {
+            console.error('❌ Ошибка получения статуса:', error);
+            return { success: false, has_profile: false };
         }
     },
     
-    showOnboardingScreen1() {
-        const template = document.getElementById('onboardingScreen1');
-        if (!template) return;
-        
-        const clone = document.importNode(template.content, true);
-        const nameSpan = clone.querySelector('#userNamePlaceholder');
-        if (nameSpan) nameSpan.textContent = this.userName;
-        
-        UI.setScreenContent('');
-        document.getElementById('screenContainer').appendChild(clone);
-        
-        setTimeout(() => {
-            const startBtn = document.getElementById('startTestBtn');
-            const whoBtn = document.getElementById('whoAreYouBtn');
-            if (startBtn) startBtn.addEventListener('click', () => this.showContextScreen('city'));
-            if (whoBtn) whoBtn.addEventListener('click', () => this.showOnboardingScreen2());
-        }, 100);
+    async getUserProfile(userId) {
+        return this.request(`/get-profile?user_id=${userId}`);
     },
     
-    showOnboardingScreen2() {
-        const template = document.getElementById('onboardingScreen2');
-        if (!template) return;
-        
-        const clone = document.importNode(template.content, true);
-        UI.setScreenContent('');
-        document.getElementById('screenContainer').appendChild(clone);
-        
-        setTimeout(() => {
-            const letsGoBtn = document.getElementById('letsGoBtn');
-            if (letsGoBtn) letsGoBtn.addEventListener('click', () => this.showContextScreen('city'));
-        }, 100);
+    async getTestInterpretation(userId) {
+        return this.request(`/get-test-interpretation?user_id=${userId}`);
     },
     
-    showContextScreen(type) {
-        const templates = {
-            city: 'contextCityScreen',
-            gender: 'contextGenderScreen',
-            age: 'contextAgeScreen'
-        };
-        
-        const template = document.getElementById(templates[type] || 'contextCityScreen');
-        if (!template) return;
-        
-        const clone = document.importNode(template.content, true);
-        UI.setScreenContent('');
-        document.getElementById('screenContainer').appendChild(clone);
-        
-        this.setupContextHandlers(type);
-    },
-    
-    setupContextHandlers(type) {
-        setTimeout(() => {
-            if (type === 'city') {
-                const submitBtn = document.getElementById('submitCityBtn');
-                const input = document.getElementById('cityInput');
-                const skipBtn = document.getElementById('skipContextBtn');
-                
-                if (submitBtn && input) {
-                    submitBtn.addEventListener('click', () => {
-                        const city = input.value.trim();
-                        if (city) {
-                            this.userContext.city = city;
-                            API.saveContext(this.userId, { city });
-                            this.showContextScreen('gender');
-                        } else {
-                            UI.showToast('Введите название города', 'warning');
-                        }
-                    });
-                    input.addEventListener('keypress', (e) => {
-                        if (e.key === 'Enter') submitBtn.click();
-                    });
-                }
-                if (skipBtn) skipBtn.addEventListener('click', () => this.showContextScreen('gender'));
-            }
-            
-            if (type === 'gender') {
-                const maleBtn = document.getElementById('genderMaleBtn');
-                const femaleBtn = document.getElementById('genderFemaleBtn');
-                const skipBtn = document.getElementById('skipGenderBtn');
-                
-                if (maleBtn) maleBtn.addEventListener('click', () => {
-                    this.userContext.gender = 'male';
-                    API.saveContext(this.userId, { gender: 'male' });
-                    this.showContextScreen('age');
-                });
-                if (femaleBtn) femaleBtn.addEventListener('click', () => {
-                    this.userContext.gender = 'female';
-                    API.saveContext(this.userId, { gender: 'female' });
-                    this.showContextScreen('age');
-                });
-                if (skipBtn) skipBtn.addEventListener('click', () => this.showContextScreen('age'));
-            }
-            
-            if (type === 'age') {
-                const submitBtn = document.getElementById('submitAgeBtn');
-                const input = document.getElementById('ageInput');
-                const skipBtn = document.getElementById('skipAgeBtn');
-                
-                if (submitBtn && input) {
-                    submitBtn.addEventListener('click', () => {
-                        const age = parseInt(input.value);
-                        if (age && age > 0 && age < 120) {
-                            this.userContext.age = age;
-                            API.saveContext(this.userId, { age });
-                            this.showCompleteScreen();
-                        } else {
-                            UI.showToast('Введите корректный возраст', 'warning');
-                        }
-                    });
-                    input.addEventListener('keypress', (e) => {
-                        if (e.key === 'Enter') submitBtn.click();
-                    });
-                }
-                if (skipBtn) skipBtn.addEventListener('click', () => this.showCompleteScreen());
-            }
-        }, 100);
-    },
-    
-    showCompleteScreen() {
-        const template = document.getElementById('contextCompleteScreen');
-        if (!template) return;
-        
-        const clone = document.importNode(template.content, true);
-        
-        const citySpan = clone.querySelector('#infoCity');
-        const genderSpan = clone.querySelector('#infoGender');
-        const ageSpan = clone.querySelector('#infoAge');
-        
-        if (citySpan) citySpan.textContent = this.userContext.city || 'не указан';
-        if (genderSpan) {
-            const genderText = this.userContext.gender === 'male' ? 'Мужчина' : 
-                              this.userContext.gender === 'female' ? 'Женщина' : 'не указан';
-            genderSpan.textContent = genderText;
-        }
-        if (ageSpan) ageSpan.textContent = this.userContext.age || 'не указан';
-        
-        UI.setScreenContent('');
-        document.getElementById('screenContainer').appendChild(clone);
-        
-        setTimeout(() => {
-            const startTestBtn = document.getElementById('startRealTestBtn');
-            const whatGivesBtn = document.getElementById('whatTestGivesBtn');
-            const askQuestionBtn = document.getElementById('askQuestionPreBtn');
-            
-            if (startTestBtn) startTestBtn.addEventListener('click', () => this.startTest());
-            if (whatGivesBtn) whatGivesBtn.addEventListener('click', () => this.showBenefitsScreen());
-            if (askQuestionBtn) askQuestionBtn.addEventListener('click', () => this.showMainChat());
-        }, 100);
-    },
-    
-    showBenefitsScreen() {
-        const template = document.getElementById('benefitsScreen');
-        if (!template) return;
-        
-        const clone = document.importNode(template.content, true);
-        UI.setScreenContent('');
-        document.getElementById('screenContainer').appendChild(clone);
-        
-        setTimeout(() => {
-            const startTestBtn = document.getElementById('startTestFromBenefitsBtn');
-            const backBtn = document.getElementById('backToContextBtn');
-            if (startTestBtn) startTestBtn.addEventListener('click', () => this.startTest());
-            if (backBtn) backBtn.addEventListener('click', () => this.showCompleteScreen());
-        }, 100);
-    },
-    
-    startTest() {
-        if (typeof Test !== 'undefined') {
-            Test.init(this.userId);
-            Test.start();
-        } else {
-            UI.showToast('Тест будет запущен!', 'info');
-        }
-    },
-    
-    async showFinalProfile() {
-        console.log('📊 Показываем финальный профиль');
-        
-        const template = document.getElementById('finalProfileScreen');
-        if (!template) return;
-        
-        const clone = document.importNode(template.content, true);
-        const profileTextDiv = clone.querySelector('#profileText');
-        
-        let profileHtml = '';
-        if (this.profileData) {
-            const profileCode = this.profileData.display_name || 'СБ-4_ТФ-4_УБ-4_ЧВ-4';
-            profileHtml = `
-                <div class="profile-section"><h3>🧠 Твой профиль: ${profileCode}</h3></div>
-                <div class="profile-section"><h4>🎭 Восприятие</h4><p>${this.getPerceptionDescription()}</p></div>
-                <div class="profile-section"><h4>💭 Мышление</h4><p>${this.getThinkingDescription()}</p></div>
-                <div class="profile-section"><h4>⚡ Поведение</h4><p>${this.getBehaviorDescription(this.profileData.scores || {})}</p></div>
-                <div class="profile-section"><h4>🎯 Точка роста</h4><p>${this.getGrowthPoint(this.profileData.scores || {})}</p></div>
-            `;
-        } else {
-            profileHtml = `<div class="profile-section"><p>🧠 Психологический портрет формируется...</p></div>`;
-        }
-        
-        if (profileTextDiv) profileTextDiv.innerHTML = profileHtml;
-        
-        UI.setScreenContent('');
-        document.getElementById('screenContainer').appendChild(clone);
-        
-        const chatHeader = document.getElementById('chatHeader');
-        if (chatHeader) chatHeader.style.display = 'flex';
-        
-        const botStatus = document.getElementById('botStatus');
-        if (botStatus) {
-            const modeNames = { coach: '🔮 коуч', psychologist: '🧠 психолог', trainer: '⚡ тренер' };
-            botStatus.textContent = modeNames[this.currentMode] || '🧠 психолог';
-        }
-        
-        this.setupProfileButtons();
-    },
-    
-    setupProfileButtons() {
-        setTimeout(() => {
-            const thoughtBtn = document.getElementById('psychologistThoughtBtn');
-            const askBtn = document.getElementById('askQuestionBtn');
-            const goalBtn = document.getElementById('chooseGoalBtn');
-            const modeBtn = document.getElementById('chooseModeBtn');
-            
-            if (thoughtBtn) thoughtBtn.addEventListener('click', () => this.showPsychologistThought());
-            if (askBtn) askBtn.addEventListener('click', () => this.showAskQuestionScreen());
-            if (goalBtn) goalBtn.addEventListener('click', () => this.showChooseGoalScreen());
-            if (modeBtn) modeBtn.addEventListener('click', () => this.showChooseModeScreen());
-            
-            const smartQuestionsBtn = document.createElement('button');
-            smartQuestionsBtn.className = 'onboarding-btn secondary';
-            smartQuestionsBtn.textContent = '❓ УМНЫЕ ВОПРОСЫ';
-            smartQuestionsBtn.style.marginTop = '12px';
-            smartQuestionsBtn.addEventListener('click', () => this.showSmartQuestions());
-            
-            const profileButtons = document.querySelector('.profile-buttons');
-            if (profileButtons) profileButtons.appendChild(smartQuestionsBtn);
-        }, 100);
-    },
-    
-    getPerceptionDescription() {
-        const perceptionType = this.profileData?.perception_type || 'СОЦИАЛЬНО-ОРИЕНТИРОВАННЫЙ';
-        const descriptions = {
-            'СОЦИАЛЬНО-ОРИЕНТИРОВАННЫЙ': 'Ты тонко чувствуешь настроение окружающих. Часто ориентируешься на мнение других.',
-            'ИНТРОВЕРТИРОВАННЫЙ': 'Твой внутренний мир богаче внешнего. Ты много рефлексируешь, анализируешь.',
-            'СИМВОЛИЧЕСКИЙ': 'Ты видишь знаки и смыслы там, где другие видят случайности.',
-            'МАТЕРИАЛИСТИЧНЫЙ': 'Ты ценишь факты, доказательства, практичность.'
-        };
-        return descriptions[perceptionType] || descriptions['СОЦИАЛЬНО-ОРИЕНТИРОВАННЫЙ'];
-    },
-    
-    getThinkingDescription() {
-        const thinkingLevel = this.profileData?.thinking_level || 5;
-        if (thinkingLevel <= 3) return 'Ты склонен к быстрым, интуитивным решениям.';
-        if (thinkingLevel <= 6) return 'Ты умеешь анализировать, видишь причинно-следственные связи.';
-        return 'Твоё мышление системное, ты видишь сложные взаимосвязи.';
-    },
-    
-    getBehaviorDescription(scores) {
-        const sb = scores['СБ'] || 3, tf = scores['ТФ'] || 3, ub = scores['УБ'] || 3, chv = scores['ЧВ'] || 3;
-        let desc = '';
-        if (sb <= 2) desc += '• Давление выбивает из колеи. ';
-        if (tf <= 2) desc += '• С деньгами сложно. ';
-        if (ub <= 2) desc += '• Мир кажется хаотичным. ';
-        if (chv <= 2) desc += '• Отношения напрягают. ';
-        return desc || 'Сбалансированный профиль, есть куда расти.';
-    },
-    
-    getGrowthPoint(scores) {
-        const vectors = ['СБ', 'ТФ', 'УБ', 'ЧВ'];
-        let minVector = 'СБ', minValue = 5;
-        for (const v of vectors) {
-            const val = scores[v] || 3;
-            if (val < minValue) { minValue = val; minVector = v; }
-        }
-        const growthPoints = {
-            'СБ': 'Работа с реакцией на давление и страхи.',
-            'ТФ': 'Проработка денежных блоков.',
-            'УБ': 'Развитие системного мышления.',
-            'ЧВ': 'Исцеление привязанности.'
-        };
-        return growthPoints[minVector] || 'Исследование себя и своих паттернов.';
-    },
-    
-    showMainChat() {
-        const chatHeader = document.getElementById('chatHeader');
-        if (chatHeader) chatHeader.style.display = 'flex';
-        
-        UI.setScreenContent(`
-            <div class="messages-container">
-                <div class="messages-list" id="messagesList">
-                    <div class="message bot-message">
-                        <div class="message-bubble">
-                            <div class="message-text">Привет, ${this.userName}! Чем могу помочь?</div>
-                            <div class="message-time">только что</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="input-panel">
-                <button class="attach-btn" id="attachBtn">📎</button>
-                <div class="message-input-wrapper">
-                    <input type="text" class="message-input" placeholder="Сообщение..." id="messageInput">
-                    <button class="send-btn" id="sendMessageBtn">➡️</button>
-                </div>
-                <button class="voice-btn" id="voiceBtn">🎤</button>
-            </div>
-        `);
-        
-        this.addChatStyles();
-        this.setupChatHandlers();
-    },
-    
-    addChatStyles() {
-        if (document.getElementById('chatStyles')) return;
-        const style = document.createElement('style');
-        style.id = 'chatStyles';
-        style.textContent = `
-            .messages-container { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; }
-            .messages-list { display: flex; flex-direction: column; gap: 12px; }
-            .message { display: flex; width: 100%; }
-            .message.user-message { justify-content: flex-end; }
-            .message.bot-message { justify-content: flex-start; }
-            .message-bubble { max-width: 80%; padding: 12px 16px; border-radius: 18px; position: relative; }
-            .user-message .message-bubble { background: var(--max-message-user); border-bottom-right-radius: 4px; }
-            .bot-message .message-bubble { background: var(--max-message-bot); border-bottom-left-radius: 4px; }
-            .message-text { font-size: 15px; line-height: 1.4; }
-            .message-time { font-size: 10px; color: var(--max-text-secondary); margin-top: 4px; text-align: right; }
-            .input-panel { padding: 12px 16px; background: var(--max-panel-bg); border-top: 1px solid var(--max-border); display: flex; gap: 8px; align-items: center; }
-            .attach-btn, .voice-btn { width: 40px; height: 40px; border-radius: 50%; background: var(--glass-bg); border: none; color: var(--max-text); font-size: 20px; cursor: pointer; }
-            .message-input-wrapper { flex: 1; display: flex; gap: 8px; background: var(--glass-bg); border-radius: 24px; padding: 4px 4px 4px 16px; }
-            .message-input { flex: 1; background: transparent; border: none; color: var(--max-text); font-size: 16px; outline: none; padding: 8px 0; }
-            .send-btn { width: 36px; height: 36px; border-radius: 50%; background: var(--max-blue); border: none; color: white; font-size: 18px; cursor: pointer; }
-        `;
-        document.head.appendChild(style);
-    },
-    
-    setupChatHandlers() {
-        setTimeout(() => {
-            const sendBtn = document.getElementById('sendMessageBtn');
-            const messageInput = document.getElementById('messageInput');
-            const voiceBtn = document.getElementById('voiceBtn');
-            
-            const sendMessage = async () => {
-                const text = messageInput.value.trim();
-                if (text) {
-                    UI.addMessageToChat(text, 'user');
-                    messageInput.value = '';
-                    UI.showLoading('Думаю...');
-                    const result = await API.sendQuestion(this.userId, text);
-                    UI.hideLoading();
-                    if (result.success) {
-                        UI.addMessageToChat(result.response, 'bot');
-                    } else {
-                        UI.addMessageToChat('Извините, произошла ошибка. Попробуйте позже.', 'bot');
-                    }
-                }
-            };
-            
-            if (sendBtn) sendBtn.addEventListener('click', sendMessage);
-            if (messageInput) messageInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') sendMessage();
-            });
-            if (voiceBtn) voiceBtn.addEventListener('click', () => {
-                Voice.start(async (text) => {
-                    UI.addMessageToChat(text, 'user');
-                    UI.showLoading('Думаю...');
-                    const result = await API.sendQuestion(this.userId, text);
-                    UI.hideLoading();
-                    if (result.success) {
-                        UI.addMessageToChat(result.response, 'bot');
-                    } else {
-                        UI.addMessageToChat('Извините, произошла ошибка.', 'bot');
-                    }
-                });
-            });
-        }, 100);
-    },
-    
-    showAskQuestionScreen() {
-        const template = document.getElementById('askQuestionScreen');
-        if (!template) return;
-        
-        const clone = document.importNode(template.content, true);
-        UI.setScreenContent('');
-        document.getElementById('screenContainer').appendChild(clone);
-        
-        setTimeout(() => {
-            const sendBtn = document.getElementById('sendQuestionBtn');
-            const questionInput = document.getElementById('questionInput');
-            const backBtn = document.getElementById('backToProfileBtn');
-            
-            const sendQuestion = async () => {
-                const question = questionInput.value.trim();
-                if (question) {
-                    UI.showLoading('Думаю...');
-                    const result = await API.sendQuestion(this.userId, question);
-                    UI.hideLoading();
-                    if (result.success) {
-                        UI.addMessageToChat(result.response, 'bot');
-                        questionInput.value = '';
-                    } else {
-                        UI.showToast('Ошибка отправки вопроса', 'error');
-                    }
-                }
-            };
-            
-            if (sendBtn) sendBtn.addEventListener('click', sendQuestion);
-            if (questionInput) questionInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') sendQuestion();
-            });
-            if (backBtn) backBtn.addEventListener('click', () => this.showFinalProfile());
-            
-            // Голосовая кнопка
-            const voiceButton = document.createElement('button');
-            voiceButton.innerHTML = '🎤';
-            voiceButton.style.cssText = `width:48px;height:48px;border-radius:50%;background:var(--max-blue);border:none;color:white;font-size:24px;cursor:pointer;margin-left:8px;`;
-            voiceButton.addEventListener('click', () => {
-                Voice.start(async (text) => {
-                    questionInput.value = text;
-                    sendQuestion();
-                });
-            });
-            const inputGroup = document.querySelector('.input-group');
-            if (inputGroup) inputGroup.appendChild(voiceButton);
-        }, 100);
-    },
-    
-    async showPsychologistThought() {
-        UI.showLoading('Анализирую...');
-        const result = await API.getThought(this.userId);
-        UI.hideLoading();
-        
-        if (result.thought) {
-            UI.setScreenContent(`
-                <div class="thought-container" style="padding: 20px;">
-                    <h2 style="text-align:center;">🧠 МЫСЛИ ПСИХОЛОГА</h2>
-                    <div style="background: var(--glass-bg); border-radius: 20px; padding: 20px; margin: 20px 0;">
-                        ${result.thought.replace(/\n/g, '<br>')}
-                    </div>
-                    <button id="backToProfileFromThoughtBtn" class="onboarding-btn secondary">◀️ НАЗАД</button>
-                </div>
-            `);
-            document.getElementById('backToProfileFromThoughtBtn')?.addEventListener('click', () => this.showFinalProfile());
-        } else {
-            UI.showToast('Не удалось сгенерировать мысли психолога', 'error');
-        }
-    },
-    
-    async showChooseGoalScreen() {
-        UI.showLoading('Загрузка целей...');
-        const result = await API.getGoals(this.userId, this.currentMode);
-        UI.hideLoading();
-        
-        const goals = result.goals || [];
-        
-        UI.setScreenContent(`
-            <div style="padding: 20px;">
-                <h2 style="text-align:center;">🎯 ВЫБЕРИ ЦЕЛЬ</h2>
-                <p style="text-align:center; color: var(--max-text-secondary);">${this.userName}, вот цели, которые подходят твоему профилю</p>
-                <div id="goalsList" style="margin: 20px 0;"></div>
-                <button id="customGoalBtn" class="onboarding-btn secondary" style="width:100%; margin-bottom: 12px;">✏️ СВОЯ ЦЕЛЬ</button>
-                <button id="backToProfileFromGoalBtn" class="onboarding-btn secondary" style="width:100%;">◀️ НАЗАД</button>
-            </div>
-        `);
-        
-        const goalsList = document.getElementById('goalsList');
-        if (goalsList && goals.length) {
-            goalsList.innerHTML = goals.map(goal => `
-                <div class="goal-item" data-goal-id="${goal.id}" style="background: var(--glass-bg); border-radius: 20px; padding: 16px; margin-bottom: 12px; cursor: pointer;">
-                    <div style="font-size: 18px; font-weight: bold;">${goal.emoji || '🎯'} ${goal.name}</div>
-                    <div style="color: var(--max-text-secondary);">⏱ ${goal.time} • ${goal.difficulty}</div>
-                </div>
-            `).join('');
-            
-            document.querySelectorAll('.goal-item').forEach(item => {
-                item.addEventListener('click', () => {
-                    const goalId = item.dataset.goalId;
-                    const goal = goals.find(g => g.id === goalId);
-                    if (goal) UI.showToast(`Цель выбрана: ${goal.name}`, 'success');
-                });
-            });
-        }
-        
-        document.getElementById('customGoalBtn')?.addEventListener('click', () => {
-            const goal = prompt('Сформулируйте свою цель:');
-            if (goal) UI.showToast(`Цель принята: "${goal}"`, 'success');
+    async saveTestResults(userId, results) {
+        return this.request('/save-test-results', {
+            method: 'POST',
+            body: JSON.stringify({ user_id: userId, results })
         });
-        document.getElementById('backToProfileFromGoalBtn')?.addEventListener('click', () => this.showFinalProfile());
     },
     
-    async showChooseModeScreen() {
-        UI.setScreenContent(`
-            <div style="padding: 20px;">
-                <h2 style="text-align:center;">⚙️ ВЫБЕРИ РЕЖИМ</h2>
-                <p style="text-align:center; color: var(--max-text-secondary);">Выбери стиль общения</p>
-                <div id="modesList" style="margin: 20px 0;"></div>
-                <button id="backToProfileFromModeBtn" class="onboarding-btn secondary" style="width:100%;">◀️ НАЗАД</button>
-            </div>
-        `);
-        
-        const modes = [
-            { id: 'coach', name: '🔮 КОУЧ', desc: 'Помогаю найти ответы внутри себя' },
-            { id: 'psychologist', name: '🧠 ПСИХОЛОГ', desc: 'Исследую глубинные паттерны' },
-            { id: 'trainer', name: '⚡ ТРЕНЕР', desc: 'Даю четкие инструменты и задания' }
-        ];
-        
-        const modesList = document.getElementById('modesList');
-        if (modesList) {
-            modesList.innerHTML = modes.map(mode => `
-                <div class="mode-card" data-mode="${mode.id}" style="background: var(--glass-bg); border-radius: 20px; padding: 16px; margin-bottom: 12px; cursor: pointer; border: 2px solid ${this.currentMode === mode.id ? 'var(--max-blue)' : 'transparent'}">
-                    <div style="font-size: 20px; font-weight: bold;">${mode.name}</div>
-                    <div style="color: var(--max-text-secondary);">${mode.desc}</div>
-                </div>
-            `).join('');
-            
-            document.querySelectorAll('.mode-card').forEach(card => {
-                card.addEventListener('click', async () => {
-                    const mode = card.dataset.mode;
-                    this.currentMode = mode;
-                    await API.setMode(this.userId, mode);
-                    UI.showToast(`Режим ${card.querySelector('div:first-child').textContent} активирован`, 'success');
-                    this.showFinalProfile();
-                });
-            });
-        }
-        
-        document.getElementById('backToProfileFromModeBtn')?.addEventListener('click', () => this.showFinalProfile());
+    async getTestQuestion(userId, stage, index) {
+        return this.request(`/test/question?user_id=${userId}&stage=${stage}&index=${index}`);
     },
     
-    async showSmartQuestions() {
-        UI.showLoading('Загрузка вопросов...');
-        const result = await API.getSmartQuestions(this.userId);
-        UI.hideLoading();
-        
-        const questions = result.questions || [
-            'Как перестать бояться конфликтов?',
-            'Как увеличить доход без новых вложений?',
-            'С чего начать изменения?',
-            'Почему я злюсь внутри, но молчу?',
-            'Как защищать границы без агрессии?'
-        ];
-        
-        UI.setScreenContent(`
-            <div class="smart-questions-container" style="padding: 20px;">
-                <div style="text-align:center; margin-bottom: 24px;">
-                    <div style="font-size: 48px;">❓</div>
-                    <h2>УМНЫЕ ВОПРОСЫ</h2>
-                    <p style="color: var(--max-text-secondary);">Выберите вопрос или напишите свой</p>
-                </div>
-                <div id="smartQuestionsList" style="margin-bottom: 20px;"></div>
-                <div class="input-group" style="display: flex; gap: 8px;">
-                    <input type="text" id="smartQuestionInput" class="modal-input" placeholder="Или напишите свой вопрос...">
-                    <button id="sendSmartQuestionBtn" style="width:48px;height:48px;border-radius:50%;background:var(--max-blue);border:none;color:white;font-size:20px;">➡️</button>
-                </div>
-                <button id="backFromSmartQuestionsBtn" class="onboarding-btn secondary" style="width:100%; margin-top: 20px;">◀️ НАЗАД</button>
-            </div>
-        `);
-        
-        const questionsList = document.getElementById('smartQuestionsList');
-        if (questionsList) {
-            questionsList.innerHTML = questions.map(q => `
-                <div class="smart-question-item" data-question="${UI.escapeHtml(q)}" style="background: var(--glass-bg); border-radius: 20px; padding: 14px; margin-bottom: 12px; cursor: pointer;">
-                    💭 ${UI.escapeHtml(q)}
-                </div>
-            `).join('');
-            
-            document.querySelectorAll('.smart-question-item').forEach(item => {
-                item.addEventListener('click', async () => {
-                    const question = item.dataset.question;
-                    UI.showLoading('Думаю...');
-                    const result = await API.sendQuestion(this.userId, question);
-                    UI.hideLoading();
-                    if (result.success) {
-                        this.showMainChat();
-                        setTimeout(() => UI.addMessageToChat(result.response, 'bot'), 100);
-                    }
-                });
-            });
-        }
-        
-        const sendBtn = document.getElementById('sendSmartQuestionBtn');
-        const input = document.getElementById('smartQuestionInput');
-        if (sendBtn && input) {
-            sendBtn.addEventListener('click', async () => {
-                const question = input.value.trim();
-                if (question) {
-                    UI.showLoading('Думаю...');
-                    const result = await API.sendQuestion(this.userId, question);
-                    UI.hideLoading();
-                    if (result.success) {
-                        this.showMainChat();
-                        setTimeout(() => UI.addMessageToChat(result.response, 'bot'), 100);
-                    }
-                    input.value = '';
-                }
-            });
-            input.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') sendBtn.click();
-            });
-        }
-        
-        document.getElementById('backFromSmartQuestionsBtn')?.addEventListener('click', () => this.showFinalProfile());
+    async submitTestAnswer(userId, stage, index, answer, option) {
+        return this.request('/test/answer', {
+            method: 'POST',
+            body: JSON.stringify({ user_id: userId, stage, question_index: index, answer, option })
+        });
     },
     
-    setupEventListeners() {
-        const mobileMenuBtn = document.getElementById('mobileMenuBtn');
-        const chatsPanel = document.getElementById('chatsPanel');
-        if (mobileMenuBtn && chatsPanel) {
-            mobileMenuBtn.addEventListener('click', () => chatsPanel.classList.toggle('visible'));
-        }
+    async sendQuestion(userId, message, mode = null) {
+        return this.request('/chat/message', {
+            method: 'POST',
+            body: JSON.stringify({ user_id: userId, message, mode })
+        });
+    },
+    
+    async getPsychologistThought(userId) {
+        const response = await this.request(`/thought?user_id=${userId}`);
+        return response.thought;
+    },
+    
+    async getWeekendIdeas(userId) {
+        const response = await this.request(`/ideas?user_id=${userId}`);
+        return response.ideas || [];
+    },
+    
+    async getAvailableModes() {
+        const response = await this.request('/modes');
+        return response.modes || [];
+    },
+    
+    async saveCommunicationMode(userId, mode) {
+        return this.request('/save-mode', {
+            method: 'POST',
+            body: JSON.stringify({ user_id: userId, mode })
+        });
+    },
+    
+    // ============================================
+    // ГОЛОСОВЫЕ API
+    // ============================================
+    
+    async sendVoiceMessage(userId, audioBlob) {
+        const formData = new FormData();
+        formData.append('user_id', userId);
+        formData.append('voice', audioBlob, 'voice.webm');
         
-        const userProfile = document.getElementById('userMiniProfile');
-        if (userProfile) {
-            userProfile.addEventListener('click', () => {
-                UI.showNameModal((name) => {
-                    Auth.saveUserName(name);
-                    this.userName = name;
-                    UI.updateUserNameInUI(name);
-                });
+        try {
+            const response = await fetch('/api/voice/process', {
+                method: 'POST',
+                body: formData
             });
+            return await response.json();
+        } catch (error) {
+            console.error('Voice API Error:', error);
+            throw error;
         }
-        
-        // Проверяем нужно ли показать модалку с именем
-        if (!localStorage.getItem('userName') || localStorage.getItem('userName') === 'Гость') {
-            setTimeout(() => {
-                UI.showNameModal((name) => {
-                    Auth.saveUserName(name);
-                    this.userName = name;
-                    UI.updateUserNameInUI(name);
-                });
-            }, 1500);
-        }
+    },
+    
+    async textToSpeech(text, mode = 'coach') {
+        const response = await this.request('/tts', {
+            method: 'POST',
+            body: JSON.stringify({ text, mode })
+        });
+        return response;
     }
 };
 
-// Запуск приложения
-document.addEventListener('DOMContentLoaded', () => App.init());
-window.App = App;
+// ============================================
+// ЛОКАЛЬНОЕ ХРАНЕНИЕ
+// ============================================
+
+function loadUserName() {
+    return localStorage.getItem(`user_name_${currentUserId}`);
+}
+
+function saveUserName(userId, name) {
+    localStorage.setItem(`user_name_${userId}`, name);
+}
+
+// ============================================
+// ПРОВЕРКА ПРОФИЛЯ ПРИ ВХОДЕ
+// ============================================
+
+async function loadUserProfileOnStart() {
+    console.log('🔄 Загрузка профиля пользователя', currentUserId);
+    showLoading('Проверка данных...');
+    
+    try {
+        const status = await api.getUserFullStatus(currentUserId);
+        console.log('📊 Статус пользователя:', status);
+        
+        if (status.success) {
+            if (status.has_interpretation && status.interpretation_ready) {
+                console.log('✅ Найдена готовая интерпретация');
+                const profile = await api.getUserProfile(currentUserId);
+                if (profile && profile.ai_generated_profile) {
+                    hideLoading();
+                    showProfileScreen(profile.ai_generated_profile);
+                    updateUIWithProfile();
+                    return true;
+                }
+            }
+            
+            if (status.has_profile && !status.has_interpretation) {
+                console.log('📊 Данные теста есть, интерпретация формируется...');
+                hideLoading();
+                showMessage('🧠 Ваш профиль анализируется... Это займет несколько секунд.', 'info');
+                startWaitingForInterpretation();
+                return false;
+            }
+        }
+        
+        const localProfile = localStorage.getItem(`profile_${currentUserId}`);
+        if (localProfile) {
+            console.log('📦 Найден локальный профиль');
+            try {
+                const profile = JSON.parse(localProfile);
+                if (profile.ai_generated_profile) {
+                    hideLoading();
+                    showProfileScreen(profile.ai_generated_profile);
+                    updateUIWithProfile();
+                    return true;
+                }
+            } catch (e) {
+                console.warn('Ошибка парсинга локального профиля:', e);
+            }
+        }
+        
+        console.log('👋 Новый пользователь');
+        hideLoading();
+        showWelcomeScreen();
+        return false;
+        
+    } catch (error) {
+        console.error('❌ Ошибка загрузки профиля:', error);
+        hideLoading();
+        showWelcomeScreen();
+        return false;
+    }
+}
+
+function startWaitingForInterpretation() {
+    if (isWaitingForInterpretation) return;
+    
+    isWaitingForInterpretation = true;
+    let attempts = 0;
+    const maxAttempts = 30;
+    const interval = 2000;
+    
+    interpretationPollingInterval = setInterval(async () => {
+        attempts++;
+        console.log(`📡 Проверка интерпретации (${attempts}/${maxAttempts})...`);
+        
+        try {
+            const result = await api.getTestInterpretation(currentUserId);
+            
+            if (result.success && result.ready && result.interpretation) {
+                console.log('✅ Интерпретация получена!');
+                clearInterval(interpretationPollingInterval);
+                isWaitingForInterpretation = false;
+                
+                localStorage.setItem(`profile_${currentUserId}`, JSON.stringify({
+                    ai_generated_profile: result.interpretation,
+                    timestamp: Date.now()
+                }));
+                
+                hideLoading();
+                showProfileScreen(result.interpretation);
+                updateUIWithProfile();
+                return;
+            }
+            
+            if (attempts >= maxAttempts) {
+                console.warn('⚠️ Таймаут ожидания интерпретации');
+                clearInterval(interpretationPollingInterval);
+                isWaitingForInterpretation = false;
+                hideLoading();
+                showMessage('Интерпретация формируется дольше обычного. Попробуйте обновить страницу позже.', 'warning');
+                showWelcomeScreen();
+            }
+        } catch (error) {
+            console.error('❌ Ошибка при опросе интерпретации:', error);
+        }
+    }, interval);
+    
+    showMessage('🧠 Анализируем ваш профиль... Пожалуйста, подождите.', 'info', true);
+}
+
+function updateUIWithProfile() {
+    const startTestBtn = document.getElementById('startTestBtn');
+    if (startTestBtn) startTestBtn.style.display = 'none';
+    
+    const profileActions = document.getElementById('profileActions');
+    if (profileActions) profileActions.style.display = 'flex';
+    
+    const nav = document.querySelector('.bottom-nav');
+    if (nav) nav.style.display = 'flex';
+}
+
+// ============================================
+// СОХРАНЕНИЕ РЕЗУЛЬТАТОВ ТЕСТА
+// ============================================
+
+async function saveTestResultsToServer() {
+    if (!testResults) return false;
+    
+    showLoading('Сохраняем результаты...');
+    
+    try {
+        const response = await api.saveTestResults(currentUserId, testResults);
+        console.log('📡 Ответ сервера:', response);
+        
+        if (response.success) {
+            localStorage.setItem(`profile_${currentUserId}`, JSON.stringify({
+                profile_data: testResults.profile_data,
+                ai_generated_profile: response.interpretation,
+                timestamp: Date.now()
+            }));
+            
+            if (response.interpretation) {
+                hideLoading();
+                showProfileScreen(response.interpretation);
+                updateUIWithProfile();
+                return true;
+            } else {
+                hideLoading();
+                startWaitingForInterpretation();
+                return true;
+            }
+        } else {
+            hideLoading();
+            showMessage('Ошибка сохранения результатов. Попробуйте еще раз.', 'error');
+            return false;
+        }
+    } catch (error) {
+        console.error('❌ Ошибка сохранения:', error);
+        hideLoading();
+        showMessage('Ошибка соединения. Результаты сохранены локально.', 'warning');
+        localStorage.setItem(`profile_${currentUserId}`, JSON.stringify({
+            profile_data: testResults.profile_data,
+            timestamp: Date.now(),
+            pending_sync: true
+        }));
+        return true;
+    }
+}
+
+// ============================================
+// ЭКРАН ПРОФИЛЯ
+// ============================================
+
+function showProfileScreen(interpretation) {
+    const mainContent = document.getElementById('mainContent');
+    const profileContent = document.getElementById('profileContent');
+    const interpretationText = document.getElementById('interpretationText');
+    
+    if (!interpretationText) return;
+    
+    let formattedText = interpretation
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\n/g, '<br>');
+    
+    interpretationText.innerHTML = formattedText;
+    
+    if (mainContent) mainContent.style.display = 'none';
+    if (profileContent) profileContent.style.display = 'block';
+    
+    updateActiveTab('profile');
+    
+    localStorage.setItem(`profile_${currentUserId}`, JSON.stringify({
+        ai_generated_profile: interpretation,
+        timestamp: Date.now()
+    }));
+}
+
+function showWelcomeScreen() {
+    const mainContent = document.getElementById('mainContent');
+    const profileContent = document.getElementById('profileContent');
+    const welcomeContent = document.getElementById('welcomeContent');
+    
+    if (mainContent) mainContent.style.display = 'none';
+    if (profileContent) profileContent.style.display = 'none';
+    if (welcomeContent) welcomeContent.style.display = 'block';
+    
+    const startTestBtn = document.getElementById('startTestBtn');
+    if (startTestBtn) startTestBtn.style.display = 'block';
+}
+
+// ============================================
+// UI КОМПОНЕНТЫ
+// ============================================
+
+function showLoading(message = 'Загрузка...') {
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    const loadingMessage = document.getElementById('loadingMessage');
+    if (loadingMessage) loadingMessage.textContent = message;
+    if (loadingOverlay) loadingOverlay.classList.add('active');
+}
+
+function hideLoading() {
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    if (loadingOverlay) loadingOverlay.classList.remove('active');
+}
+
+function showMessage(message, type = 'info', persistent = false) {
+    const toast = document.getElementById('toast');
+    const toastMessage = document.getElementById('toastMessage');
+    
+    if (!toast || !toastMessage) return;
+    
+    toastMessage.textContent = message;
+    toast.className = `toast ${type}`;
+    toast.classList.add('show');
+    
+    if (!persistent) {
+        setTimeout(() => {
+            toast.classList.remove('show');
+        }, 3000);
+    }
+}
+
+// ============================================
+// ГОЛОСОВЫЕ ФУНКЦИИ
+// ============================================
+
+async function startVoiceRecording() {
+    if (isRecording) {
+        stopVoiceRecording();
+        return;
+    }
+    
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        
+        mediaRecorder = new MediaRecorder(stream, {
+            mimeType: MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/ogg'
+        });
+        audioChunks = [];
+        
+        mediaRecorder.ondataavailable = (event) => {
+            if (event.data.size > 0) {
+                audioChunks.push(event.data);
+            }
+        };
+        
+        mediaRecorder.onstop = async () => {
+            stream.getTracks().forEach(track => track.stop());
+            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            await sendVoiceToServer(audioBlob);
+        };
+        
+        mediaRecorder.start(1000);
+        isRecording = true;
+        recordingStartTime = Date.now();
+        
+        const voiceBtn = document.getElementById('voiceRecordBtn');
+        if (voiceBtn) {
+            voiceBtn.textContent = '⏹️';
+            voiceBtn.classList.add('recording');
+        }
+        
+        startRecordingTimer();
+        
+        setTimeout(() => {
+            if (isRecording) {
+                stopVoiceRecording();
+            }
+        }, 30000);
+        
+    } catch (error) {
+        console.error('❌ Ошибка доступа к микрофону:', error);
+        showMessage('Не удалось получить доступ к микрофону. Проверьте разрешения.', 'error');
+    }
+}
+
+function startRecordingTimer() {
+    const timerElement = document.getElementById('recordingTimer');
+    if (!timerElement) return;
+    
+    if (recordingTimer) clearInterval(recordingTimer);
+    
+    recordingTimer = setInterval(() => {
+        if (isRecording && recordingStartTime) {
+            const elapsed = Math.floor((Date.now() - recordingStartTime) / 1000);
+            timerElement.textContent = `${elapsed}s`;
+            timerElement.style.display = 'inline';
+            
+            if (elapsed >= 30) {
+                timerElement.textContent = '30s';
+            }
+        }
+    }, 1000);
+}
+
+function stopRecordingTimer() {
+    if (recordingTimer) {
+        clearInterval(recordingTimer);
+        recordingTimer = null;
+    }
+    const timerElement = document.getElementById('recordingTimer');
+    if (timerElement) {
+        timerElement.style.display = 'none';
+        timerElement.textContent = '';
+    }
+}
+
+function stopVoiceRecording() {
+    if (mediaRecorder && isRecording) {
+        mediaRecorder.stop();
+        isRecording = false;
+        stopRecordingTimer();
+        
+        const voiceBtn = document.getElementById('voiceRecordBtn');
+        if (voiceBtn) {
+            voiceBtn.textContent = '🎤';
+            voiceBtn.classList.remove('recording');
+        }
+    }
+}
+
+async function sendVoiceToServer(audioBlob) {
+    showLoading('Распознаю речь...');
+    
+    try {
+        const result = await api.sendVoiceMessage(currentUserId, audioBlob);
+        
+        if (result.success) {
+            if (result.recognized_text) {
+                addMessageToChat(`🎤 Вы сказали: ${result.recognized_text}`, 'user');
+            }
+            if (result.answer) {
+                addMessageToChat(result.answer, 'bot', result.buttons);
+            }
+            if (result.audio_url) {
+                playAudioResponse(result.audio_url);
+            }
+        } else {
+            addMessageToChat(result.answer || 'Не удалось распознать голос', 'bot');
+        }
+    } catch (error) {
+        console.error('❌ Ошибка отправки голоса:', error);
+        addMessageToChat('Ошибка при обработке голосового сообщения', 'bot');
+    }
+    
+    hideLoading();
+}
+
+function playAudioResponse(audioUrl) {
+    const audio = new Audio(audioUrl);
+    audio.play().catch(e => console.error('Ошибка воспроизведения:', e));
+}
+
+// ============================================
+// НАВИГАЦИЯ
+// ============================================
+
+function setupEventListeners() {
+    const startTestBtn = document.getElementById('startTestBtn');
+    if (startTestBtn) {
+        startTestBtn.addEventListener('click', () => startTest());
+    }
+    
+    const showProfileBtn = document.getElementById('showProfileBtn');
+    if (showProfileBtn) {
+        showProfileBtn.addEventListener('click', async () => {
+            showLoading('Загрузка профиля...');
+            const profile = await api.getUserProfile(currentUserId);
+            if (profile && profile.ai_generated_profile) {
+                showProfileScreen(profile.ai_generated_profile);
+            } else {
+                showMessage('Профиль еще не готов', 'warning');
+            }
+            hideLoading();
+        });
+    }
+    
+    const retestBtn = document.getElementById('retestBtn');
+    if (retestBtn) {
+        retestBtn.addEventListener('click', () => startTest());
+    }
+    
+    const voiceRecordBtn = document.getElementById('voiceRecordBtn');
+    if (voiceRecordBtn) {
+        voiceRecordBtn.addEventListener('click', () => startVoiceRecording());
+    }
+    
+    const navProfile = document.getElementById('navProfile');
+    const navChat = document.getElementById('navChat');
+    const navModes = document.getElementById('navModes');
+    
+    if (navProfile) navProfile.addEventListener('click', () => showProfileFromNav());
+    if (navChat) navChat.addEventListener('click', () => showChatScreen());
+    if (navModes) navModes.addEventListener('click', () => showModesScreen());
+    
+    const sendBtn = document.getElementById('sendMessageBtn');
+    if (sendBtn) {
+        sendBtn.addEventListener('click', () => sendChatMessage());
+    }
+    
+    const messageInput = document.getElementById('messageInput');
+    if (messageInput) {
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendChatMessage();
+        });
+    }
+}
+
+async function showProfileFromNav() {
+    showLoading('Загрузка...');
+    
+    const status = await api.getUserFullStatus(currentUserId);
+    
+    if (status.has_interpretation) {
+        const profile = await api.getUserProfile(currentUserId);
+        if (profile && profile.ai_generated_profile) {
+            showProfileScreen(profile.ai_generated_profile);
+        }
+    } else if (status.has_profile) {
+        showMessage('Интерпретация формируется...', 'info');
+        startWaitingForInterpretation();
+    } else {
+        showWelcomeScreen();
+    }
+    
+    hideLoading();
+}
+
+function showChatScreen() {
+    const mainContent = document.getElementById('mainContent');
+    const profileContent = document.getElementById('profileContent');
+    const welcomeContent = document.getElementById('welcomeContent');
+    const testContent = document.getElementById('testContent');
+    const chatContent = document.getElementById('chatContent');
+    const modesContent = document.getElementById('modesContent');
+    
+    if (mainContent) mainContent.style.display = 'none';
+    if (profileContent) profileContent.style.display = 'none';
+    if (welcomeContent) welcomeContent.style.display = 'none';
+    if (testContent) testContent.style.display = 'none';
+    if (modesContent) modesContent.style.display = 'none';
+    if (chatContent) chatContent.style.display = 'block';
+    
+    updateActiveTab('chat');
+}
+
+function showModesScreen() {
+    const mainContent = document.getElementById('mainContent');
+    const profileContent = document.getElementById('profileContent');
+    const welcomeContent = document.getElementById('welcomeContent');
+    const testContent = document.getElementById('testContent');
+    const chatContent = document.getElementById('chatContent');
+    const modesContent = document.getElementById('modesContent');
+    
+    if (mainContent) mainContent.style.display = 'none';
+    if (profileContent) profileContent.style.display = 'none';
+    if (welcomeContent) welcomeContent.style.display = 'none';
+    if (testContent) testContent.style.display = 'none';
+    if (chatContent) chatContent.style.display = 'none';
+    if (modesContent) modesContent.style.display = 'block';
+    
+    updateActiveTab('modes');
+    loadModes();
+}
+
+async function loadModes() {
+    const modesList = document.getElementById('modesList');
+    if (!modesList) return;
+    
+    showLoading('Загрузка режимов...');
+    
+    try {
+        const modes = await api.getAvailableModes();
+        modesList.innerHTML = '';
+        
+        for (const mode of modes) {
+            const modeCard = document.createElement('div');
+            modeCard.className = 'mode-card';
+            modeCard.innerHTML = `
+                <div class="mode-emoji">${mode.emoji}</div>
+                <div class="mode-name">${mode.name}</div>
+                <div class="mode-description">${mode.description}</div>
+                <button class="mode-select-btn" data-mode="${mode.id}">Выбрать</button>
+            `;
+            
+            const selectBtn = modeCard.querySelector('.mode-select-btn');
+            selectBtn.addEventListener('click', () => selectMode(mode.id));
+            
+            modesList.appendChild(modeCard);
+        }
+    } catch (error) {
+        console.error('Ошибка загрузки режимов:', error);
+        modesList.innerHTML = '<p>Ошибка загрузки режимов</p>';
+    }
+    
+    hideLoading();
+}
+
+async function selectMode(mode) {
+    showLoading('Сохранение режима...');
+    
+    try {
+        const result = await api.saveCommunicationMode(currentUserId, mode);
+        if (result.success) {
+            showMessage(`Режим ${mode} выбран!`, 'success');
+            showChatScreen();
+        } else {
+            showMessage('Ошибка сохранения режима', 'error');
+        }
+    } catch (error) {
+        console.error('Ошибка:', error);
+        showMessage('Ошибка соединения', 'error');
+    }
+    
+    hideLoading();
+}
+
+async function sendChatMessage() {
+    const input = document.getElementById('messageInput');
+    const message = input?.value.trim();
+    if (!message) return;
+    
+    input.value = '';
+    addMessageToChat(message, 'user');
+    
+    showLoading('Думаю...');
+    
+    try {
+        const response = await api.sendQuestion(currentUserId, message);
+        if (response.success) {
+            addMessageToChat(response.response, 'bot', response.buttons);
+        } else {
+            addMessageToChat('Извините, произошла ошибка. Попробуйте позже.', 'bot');
+        }
+    } catch (error) {
+        console.error('Ошибка:', error);
+        addMessageToChat('Ошибка соединения. Попробуйте позже.', 'bot');
+    }
+    
+    hideLoading();
+}
+
+function addMessageToChat(text, sender, buttons = null) {
+    const messagesContainer = document.getElementById('chatMessages');
+    if (!messagesContainer) return;
+    
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${sender}`;
+    
+    const formattedText = text
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\n/g, '<br>');
+    
+    messageDiv.innerHTML = `
+        <div class="message-text">${formattedText}</div>
+        ${buttons ? '<div class="message-buttons"></div>' : ''}
+    `;
+    
+    messagesContainer.appendChild(messageDiv);
+    
+    if (buttons && buttons.length > 0) {
+        const buttonsContainer = messageDiv.querySelector('.message-buttons');
+        buttons.forEach(btn => {
+            const button = document.createElement('button');
+            button.className = 'chat-btn';
+            button.textContent = btn.text;
+            button.onclick = () => handleChatAction(btn.action, btn.data);
+            buttonsContainer.appendChild(button);
+        });
+    }
+    
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+function handleChatAction(action, data) {
+    if (action === 'start_test') startTest();
+    else if (action === 'show_profile') showProfileFromNav();
+    else if (action === 'show_thoughts') showPsychologistThought();
+    else if (action === 'show_weekend') showWeekendIdeas();
+}
+
+async function showPsychologistThought() {
+    showLoading('Загрузка...');
+    try {
+        const thought = await api.getPsychologistThought(currentUserId);
+        addMessageToChat(thought || 'Мысли психолога еще не сгенерированы.', 'bot');
+    } catch (error) {
+        addMessageToChat('Ошибка загрузки мыслей психолога', 'bot');
+    }
+    hideLoading();
+}
+
+async function showWeekendIdeas() {
+    showLoading('Генерация идей...');
+    try {
+        const ideas = await api.getWeekendIdeas(currentUserId);
+        if (ideas && ideas.length > 0) {
+            let text = '🎨 **Идеи на выходные:**\n\n';
+            ideas.forEach((idea, idx) => {
+                text += `${idx + 1}. ${idea.title || idea.description}\n`;
+            });
+            addMessageToChat(text, 'bot');
+        } else {
+            addMessageToChat('Пока нет идей для вас. Пройдите тест, чтобы я лучше понимал ваш профиль.', 'bot');
+        }
+    } catch (error) {
+        addMessageToChat('Ошибка генерации идей', 'bot');
+    }
+    hideLoading();
+}
+
+function updateActiveTab(tab) {
+    const navProfile = document.getElementById('navProfile');
+    const navChat = document.getElementById('navChat');
+    const navModes = document.getElementById('navModes');
+    
+    if (navProfile) navProfile.classList.remove('active');
+    if (navChat) navChat.classList.remove('active');
+    if (navModes) navModes.classList.remove('active');
+    
+    if (tab === 'profile' && navProfile) navProfile.classList.add('active');
+    if (tab === 'chat' && navChat) navChat.classList.add('active');
+    if (tab === 'modes' && navModes) navModes.classList.add('active');
+}
+
+// ============================================
+// ТЕСТ
+// ============================================
+
+function startTest() {
+    currentStage = 1;
+    currentQuestionIndex = 0;
+    allAnswers = [];
+    stageAnswers = {1: [], 2: [], 3: [], 4: [], 5: []};
+    testResults = null;
+    
+    const welcomeContent = document.getElementById('welcomeContent');
+    const profileContent = document.getElementById('profileContent');
+    const mainContent = document.getElementById('mainContent');
+    const testContent = document.getElementById('testContent');
+    const chatContent = document.getElementById('chatContent');
+    const modesContent = document.getElementById('modesContent');
+    
+    if (welcomeContent) welcomeContent.style.display = 'none';
+    if (profileContent) profileContent.style.display = 'none';
+    if (mainContent) mainContent.style.display = 'none';
+    if (chatContent) chatContent.style.display = 'none';
+    if (modesContent) modesContent.style.display = 'none';
+    if (testContent) testContent.style.display = 'block';
+    
+    loadQuestion(1, 0);
+}
+
+async function loadQuestion(stage, index) {
+    currentStage = stage;
+    currentQuestionIndex = index;
+    
+    showLoading('Загрузка вопроса...');
+    
+    try {
+        const question = await api.getTestQuestion(currentUserId, stage, index);
+        if (question.success) {
+            displayQuestion(question);
+        } else {
+            showMessage('Ошибка загрузки вопроса', 'error');
+        }
+    } catch (error) {
+        console.error('Ошибка:', error);
+        showMessage('Ошибка соединения', 'error');
+    }
+    
+    hideLoading();
+}
+
+function displayQuestion(question) {
+    const questionText = document.getElementById('questionText');
+    const optionsContainer = document.getElementById('optionsContainer');
+    const progress = document.getElementById('testProgress');
+    const stageIndicator = document.getElementById('stageIndicator');
+    
+    if (questionText) questionText.textContent = question.text;
+    if (stageIndicator) stageIndicator.textContent = `Этап ${question.stage}/5`;
+    
+    if (progress) {
+        const percent = ((question.index + 1) / question.total) * 100;
+        progress.style.width = `${percent}%`;
+        progress.textContent = `${question.index + 1}/${question.total}`;
+    }
+    
+    if (optionsContainer && question.options) {
+        optionsContainer.innerHTML = '';
+        question.options.forEach((option, idx) => {
+            const button = document.createElement('button');
+            button.className = 'option-btn';
+            button.textContent = `${option.id}. ${option.text}`;
+            button.onclick = () => submitAnswer(question.stage, question.index, option.text, option.value);
+            optionsContainer.appendChild(button);
+        });
+    }
+}
+
+async function submitAnswer(stage, index, answerText, answerValue) {
+    showLoading('Сохранение...');
+    
+    try {
+        const result = await api.submitTestAnswer(currentUserId, stage, index, answerText, answerValue);
+        
+        if (result.success) {
+            allAnswers.push({
+                stage: stage,
+                question_index: index,
+                answer: answerText,
+                option: answerValue,
+                timestamp: new Date().toISOString()
+            });
+            
+            stageAnswers[stage].push({
+                index: index,
+                answer: answerText,
+                option: answerValue
+            });
+            
+            const nextIndex = index + 1;
+            const stageTotal = {1: 4, 2: 6, 3: 24, 4: 12, 5: 8}[stage];
+            
+            if (nextIndex < stageTotal) {
+                await loadQuestion(stage, nextIndex);
+            } else if (stage < 5) {
+                await loadQuestion(stage + 1, 0);
+            } else {
+                await completeTest();
+            }
+        } else {
+            showMessage('Ошибка сохранения ответа', 'error');
+        }
+    } catch (error) {
+        console.error('Ошибка:', error);
+        showMessage('Ошибка соединения', 'error');
+    }
+    
+    hideLoading();
+}
+
+async function completeTest() {
+    showLoading('Формируем результаты...');
+    
+    testResults = {
+        all_answers: allAnswers,
+        stage1_answers: stageAnswers[1],
+        stage2_answers: stageAnswers[2],
+        stage3_answers: stageAnswers[3],
+        stage4_answers: stageAnswers[4],
+        stage5_answers: stageAnswers[5],
+        perception_type: calculatePerceptionType(),
+        thinking_level: calculateThinkingLevel(),
+        behavioral_levels: calculateBehavioralLevels(),
+        deep_patterns: calculateDeepPatterns(),
+        profile_data: calculateProfileData(),
+        completed_at: new Date().toISOString()
+    };
+    
+    const saved = await saveTestResultsToServer();
+    
+    if (saved) {
+        const testContent = document.getElementById('testContent');
+        if (testContent) testContent.style.display = 'none';
+    }
+    
+    hideLoading();
+}
+
+function calculatePerceptionType() {
+    const scores = { visual: 0, kinesthetic: 0, auditory: 0, digital: 0 };
+    stageAnswers[1].forEach(answer => {
+        const option = answer.option;
+        if (option === 'visual') scores.visual++;
+        if (option === 'kinesthetic') scores.kinesthetic++;
+        if (option === 'auditory') scores.auditory++;
+        if (option === 'digital') scores.digital++;
+    });
+    const maxType = Object.keys(scores).reduce((a, b) => scores[a] > scores[b] ? a : b);
+    const types = { visual: 'ВИЗУАЛЬНЫЙ', kinesthetic: 'КИНЕСТЕТИЧЕСКИЙ', auditory: 'АУДИАЛЬНЫЙ', digital: 'ДИГИТАЛЬНЫЙ' };
+    return types[maxType] || 'СМЕШАННЫЙ';
+}
+
+function calculateThinkingLevel() {
+    let sum = 0;
+    stageAnswers[2].forEach(answer => sum += parseInt(answer.option) || 3);
+    return Math.round(sum / stageAnswers[2].length) || 5;
+}
+
+function calculateBehavioralLevels() {
+    const levels = { "СБ": [], "ТФ": [], "УБ": [], "ЧВ": [] };
+    const vectorMap = { 0: "СБ", 1: "СБ", 2: "СБ", 3: "ТФ", 4: "ТФ", 5: "ТФ", 6: "УБ", 7: "УБ", 8: "УБ", 9: "ЧВ", 10: "ЧВ", 11: "ЧВ", 12: "СБ", 13: "ТФ", 14: "УБ", 15: "ЧВ", 16: "СБ", 17: "ТФ", 18: "УБ", 19: "ЧВ", 20: "СБ", 21: "ТФ", 22: "УБ", 23: "ЧВ" };
+    
+    stageAnswers[3].forEach((answer, idx) => {
+        const vector = vectorMap[idx] || "СБ";
+        const value = parseInt(answer.option) || 3;
+        if (!levels[vector]) levels[vector] = [];
+        levels[vector].push(value);
+    });
+    
+    for (const key of ["СБ", "ТФ", "УБ", "ЧВ"]) {
+        if (!levels[key] || levels[key].length === 0) levels[key] = [3, 3, 3, 3, 3, 3];
+        while (levels[key].length < 6) levels[key].push(3);
+    }
+    return levels;
+}
+
+function calculateDeepPatterns() {
+    return {
+        attachment: "надежный",
+        defense_mechanisms: ["интеллектуализация"],
+        core_fears: ["потеря контроля"],
+        core_beliefs: ["я справлюсь"],
+        stress_response: "анализ",
+        core_values: ["честность"],
+        anger_style: "анализ",
+        social_role: "наблюдатель",
+        criticism_response: "анализ",
+        core_issue: "поиск смысла"
+    };
+}
+
+function calculateProfileData() {
+    const behavioral = calculateBehavioralLevels();
+    const sb = Math.round(behavioral["СБ"].reduce((s, v) => s + v, 0) / 6 * 10) / 10;
+    const tf = Math.round(behavioral["ТФ"].reduce((s, v) => s + v, 0) / 6 * 10) / 10;
+    const ub = Math.round(behavioral["УБ"].reduce((s, v) => s + v, 0) / 6 * 10) / 10;
+    const chv = Math.round(behavioral["ЧВ"].reduce((s, v) => s + v, 0) / 6 * 10) / 10;
+    
+    return {
+        display_name: `СБ-${Math.round(sb)}_ТФ-${Math.round(tf)}_УБ-${Math.round(ub)}_ЧВ-${Math.round(chv)}`,
+        sb_level: sb,
+        tf_level: tf,
+        ub_level: ub,
+        chv_level: chv
+    };
+}
+
+// ============================================
+// ЭКСПОРТ ГЛОБАЛЬНЫХ ФУНКЦИЙ
+// ============================================
+
+window.startTest = startTest;
+window.showProfile = showProfileFromNav;
+window.showChat = showChatScreen;
+window.showModes = showModesScreen;
+window.sendChatMessage = sendChatMessage;
+window.startVoiceRecording = startVoiceRecording;

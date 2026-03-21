@@ -141,26 +141,6 @@ const App = {
     }
 },
         
-        try {
-            const options = {
-                method: method,
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            };
-            if (method === 'POST') {
-                options.body = JSON.stringify(params);
-            }
-            
-            const response = await fetch(url.toString(), options);
-            const data = await response.json();
-            return data;
-        } catch (error) {
-            console.error(`API Error ${endpoint}:`, error);
-            return { success: false, error: error.message };
-        }
-    },
-    
     async sendQuestionToServer(question) {
         return this.apiCall('/api/chat/message', {
             user_id: this.userId,

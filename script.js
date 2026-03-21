@@ -117,9 +117,38 @@ const App = {
         const API_BASE_URL = 'https://max-bot-1-ywpz.onrender.com';
         const url = new URL(endpoint, API_BASE_URL);
         
-        if (method === 'GET') {
-            Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
+        async apiCall(endpoint, params = {}, method = 'GET') {
+    // 🔥 ИСПРАВЛЕНО: используем правильный URL бэкенда
+    const API_BASE_URL = 'https://max-bot-1-ywpz.onrender.com';
+    const url = new URL(endpoint, API_BASE_URL);
+    
+    try {
+        const options = {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        };
+        
+        // 🔥 ВСЕГДА отправляем параметры в теле запроса
+        if (Object.keys(params).length > 0) {
+            options.body = JSON.stringify(params);
         }
+        
+        const response = await fetch(url.toString(), options);
+        
+        if (!response.ok) {
+            console.error(`HTTP Error ${response.status}:`, await response.text());
+            return { success: false, error: `HTTP ${response.status}` };
+        }
+        
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error(`API Error ${endpoint}:`, error);
+        return { success: false, error: error.message };
+    }
+}
         
         try {
             const options = {

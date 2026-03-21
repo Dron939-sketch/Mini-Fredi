@@ -34,8 +34,16 @@ let recordingTimer = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('🚀 Мини-приложение запущено');
-    // 🔥 ВСТАВИТЬ ЭТОТ БЛОК 🔥
-    if (window.MAX?.WebApp?.initDataUnsafe?.user?.id) {
+    
+    // 🔥 ПОЛУЧАЕМ USER_ID ИЗ maxContext (устанавливается в index.html)
+    if (window.maxContext && window.maxContext.user_id) {
+        currentUserId = window.maxContext.user_id;
+        currentUser = { id: currentUserId, first_name: 'Пользователь' };
+        console.log('👤 Пользователь из maxContext:', currentUserId);
+    }
+    
+    // 2. Пробуем получить из MAX WebApp (если открыто внутри MAX)
+    if (!currentUserId && window.MAX?.WebApp?.initDataUnsafe?.user?.id) {
         currentUserId = window.MAX.WebApp.initDataUnsafe.user.id;
         currentUser = window.MAX.WebApp.initDataUnsafe.user;
         console.log('👤 Пользователь MAX:', currentUserId);
@@ -43,38 +51,43 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.MAX.WebApp.expand();
     }
     
-    // Получаем ID пользователя из Telegram WebApp
-    if (window.Telegram && window.Telegram.WebApp) {
+    // 3. Пробуем получить из Telegram WebApp (для совместимости)
+    if (!currentUserId && window.Telegram?.WebApp?.initDataUnsafe?.user?.id) {
+        currentUserId = window.Telegram.WebApp.initDataUnsafe.user.id;
+        currentUser = window.Telegram.WebApp.initDataUnsafe.user;
+        console.log('👤 Пользователь Telegram:', currentUserId);
         const tg = window.Telegram.WebApp;
-        currentUserId = tg.initDataUnsafe?.user?.id;
-        currentUser = tg.initDataUnsafe?.user;
-        
-        console.log('👤 Пользователь Telegram:', currentUserId, currentUser);
-        
-        // Показываем кнопку "Закрыть"
         tg.MainButton.hide();
         tg.BackButton.hide();
-        
-        // Расширяем на весь экран
         tg.expand();
-        
-        // Настройка темы
-        if (tg.colorScheme === 'dark') {
-            document.body.classList.add('dark');
-        }
-    } else {
-        // Для локальной разработки
-        currentUserId = localStorage.getItem('userId') || 123456789;
-        currentUser = { id: currentUserId, first_name: 'Тестовый' };
-        console.warn('⚠️ Telegram WebApp не найден, используем тестовый режим');
+        if (tg.colorScheme === 'dark') document.body.classList.add('dark');
     }
+    
+    // 4. Пробуем получить из localStorage
+    if (!currentUserId) {
+        const savedUserId = localStorage.getItem('fredi_user_id');
+        if (savedUserId) {
+            currentUserId = savedUserId;
+            console.log('💾 Загружен user_id из localStorage:', currentUserId);
+        }
+    }
+    
+    // 5. Если все еще нет - используем тестовый
+    if (!currentUserId) {
+        currentUserId = localStorage.getItem('userId') || 213102077;
+        currentUser = { id: currentUserId, first_name: 'Тестовый' };
+        console.warn('⚠️ Используем тестовый user_id:', currentUserId);
+    }
+    
+    // Сохраняем в localStorage
+    localStorage.setItem('fredi_user_id', currentUserId);
     
     // Загружаем сохраненное имя
     const savedName = loadUserName();
     if (savedName) {
-        document.getElementById('userNameDisplay').textContent = savedName;
+        document.getElementById('userNameDisplay')?.setAttribute('textContent', savedName);
     } else if (currentUser?.first_name) {
-        document.getElementById('userNameDisplay').textContent = currentUser.first_name;
+        document.getElementById('userNameDisplay')?.setAttribute('textContent', currentUser.first_name);
         saveUserName(currentUserId, currentUser.first_name);
     }
     
@@ -97,10 +110,7 @@ const api = {
             ...options.headers
         };
         
-        const config = {
-            ...options,
-            headers
-        };
+        const config = { ...options, headers };
         
         try {
             const response = await fetch(url, config);
@@ -181,7 +191,8 @@ const api = {
         formData.append('voice', audioBlob, 'voice.webm');
         
         try {
-            const response = await fetch('https://max-bot-1-ywpz.onrender.com/api/voice/process', {
+            // 🔥 ИСПРАВЛЕНО: используем относительный URL
+            const response = await fetch('/api/voice/process', {
                 method: 'POST',
                 body: formData
             });
@@ -481,7 +492,6 @@ async function startVoiceRecording() {
         
         mediaRecorder.onstop = async () => {
             stream.getTracks().forEach(track => track.stop());
-            
             const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
             await sendVoiceToServer(audioBlob);
         };
@@ -563,7 +573,8 @@ async function sendVoiceToServer(audioBlob) {
         formData.append('user_id', currentUserId);
         formData.append('voice', audioBlob, 'voice.webm');
         
-        const response = await fetch('https://max-bot-1-ywpz.onrender.com/api/voice/process', {
+        // 🔥 ИСПРАВЛЕНО: используем относительный URL
+        const response = await fetch('/api/voice/process', {
             method: 'POST',
             body: formData
         });

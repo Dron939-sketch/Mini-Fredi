@@ -1,9 +1,9 @@
 // ========== script.js ==========
 // ПОЛНАЯ ВЕРСИЯ С ПРАВИЛЬНОЙ ЛОГИКОЙ + СОХРАНЕНИЕ ИМЕНИ + ИНТЕГРАЦИЯ С MAX + ТЕСТ + ЭКРАНЫ ПОСЛЕ ТЕСТА
-// ДОБАВЛЕНЫ: ГОЛОСОВОЙ ВВОД (Web Speech API) + УМНЫЕ ВОПРОСЫ
+// ДОБАВЛЕНЫ: ГОЛОСОВОЙ ВВОД (Web Speech API) + УМНЫЕ ВОПРОСЫ + ИНТЕГРАЦИЯ С MAX
 
 const App = {
-    userId: 'test_user_123',
+    userId: null,
     userName: 'Загрузка...',
     userData: {},
     userContext: {
@@ -23,13 +23,31 @@ const App = {
     async init() {
         console.log('🚀 Фреди: инициализация');
         
-        // Получаем user_id от MAX если есть
-        if (window.maxContext?.user_id) {
+        // 🔥 ПОЛУЧАЕМ USER_ID ИЗ maxContext (устанавливается в index.html)
+        if (window.maxContext && window.maxContext.user_id) {
             this.userId = window.maxContext.user_id;
             console.log('👤 Получен ID от MAX:', this.userId);
         }
         
-        // Загружаем сохраненное имя из localStorage
+        // Если нет из maxContext, пробуем из localStorage
+        if (!this.userId) {
+            const savedUserId = localStorage.getItem('fredi_user_id');
+            if (savedUserId) {
+                this.userId = savedUserId;
+                console.log('💾 Загружен user_id из localStorage:', this.userId);
+            }
+        }
+        
+        // Если все еще нет - используем тестовый
+        if (!this.userId) {
+            this.userId = 'test_user_123';
+            console.warn('⚠️ Используем тестовый user_id:', this.userId);
+        }
+        
+        // Сохраняем в localStorage
+        localStorage.setItem('fredi_user_id', this.userId);
+        
+        // Загружаем сохраненное имя
         this.loadUserName();
         
         // Скрываем шапку чата
@@ -39,23 +57,8 @@ const App = {
         // Обновляем имя в левой панели
         this.updateUserNameInUI();
         
-        // Загружаем данные пользователя если есть API
-        if (window.api) {
-            try {
-                const userData = await window.api.getUserStatus(this.userId);
-                if (userData?.user_name) {
-                    this.saveUserName(userData.user_name);
-                }
-                if (userData?.profile_data) {
-                    this.profileData = userData.profile_data;
-                }
-                if (userData?.communication_mode) {
-                    this.currentMode = userData.communication_mode;
-                }
-            } catch (e) {
-                console.warn('Ошибка загрузки данных:', e);
-            }
-        }
+        // Загружаем данные пользователя с сервера
+        await this.loadUserDataFromServer();
         
         // Получаем статус пользователя
         await this.checkUserStatus();
@@ -68,6 +71,100 @@ const App = {
         
         // Инициализируем Web Speech API
         this.initSpeechRecognition();
+        
+        // 🔥 ОПОВЕЩАЕМ MAX, ЧТО ПРИЛОЖЕНИЕ ЗАГРУЖЕНО
+        if (window.MAX && window.MAX.WebApp) {
+            window.MAX.WebApp.ready();
+            window.MAX.WebApp.expand();
+        }
+        if (window.Telegram && window.Telegram.WebApp) {
+            window.Telegram.WebApp.ready();
+            window.Telegram.WebApp.expand();
+        }
+    },
+    
+    // ========== ЗАГРУЗКА ДАННЫХ С СЕРВЕРА ==========
+    
+    async loadUserDataFromServer() {
+        try {
+            // Проверяем статус пользователя через API
+            const status = await this.apiCall('/api/user-status', {
+                user_id: this.userId
+            });
+            
+            if (status.success) {
+                if (status.profile_data) {
+                    this.profileData = status.profile_data;
+                    console.log('📊 Загружен профиль:', this.profileData);
+                }
+                if (status.communication_mode) {
+                    this.currentMode = status.communication_mode;
+                }
+                if (status.user_name) {
+                    this.userName = status.user_name;
+                    this.saveUserName(status.user_name);
+                }
+            }
+        } catch (error) {
+            console.warn('Ошибка загрузки данных с сервера:', error);
+        }
+    },
+    
+    // ========== API ВЫЗОВЫ ==========
+    
+    async apiCall(endpoint, params = {}, method = 'GET') {
+        const url = new URL(endpoint, window.location.origin);
+        if (method === 'GET') {
+            Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
+        }
+        
+        try {
+            const options = {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            };
+            if (method === 'POST') {
+                options.body = JSON.stringify(params);
+            }
+            
+            const response = await fetch(url.toString(), options);
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error(`API Error ${endpoint}:`, error);
+            return { success: false, error: error.message };
+        }
+    },
+    
+    async sendQuestionToServer(question) {
+        return this.apiCall('/api/chat/message', {
+            user_id: this.userId,
+            message: question,
+            mode: this.currentMode
+        }, 'POST');
+    },
+    
+    async saveModeToServer(mode) {
+        return this.apiCall('/api/save-mode', {
+            user_id: this.userId,
+            mode: mode
+        }, 'POST');
+    },
+    
+    async getPsychologistThoughtFromServer() {
+        const response = await this.apiCall('/api/thought', {
+            user_id: this.userId
+        });
+        return response.thought;
+    },
+    
+    async getSmartQuestionsFromServer() {
+        const response = await this.apiCall('/api/smart-questions', {
+            user_id: this.userId
+        });
+        return response.questions || [];
     },
     
     setupEventListeners() {
@@ -118,8 +215,10 @@ const App = {
     
     initSpeechRecognition() {
         // Проверяем поддержку Web Speech API
-        if ('webkitSpeechRecognition' in window) {
-            this.recognition = new webkitSpeechRecognition();
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        
+        if (SpeechRecognition) {
+            this.recognition = new SpeechRecognition();
             this.recognition.lang = 'ru-RU';
             this.recognition.interimResults = false;
             this.recognition.maxAlternatives = 1;
@@ -135,11 +234,13 @@ const App = {
                 
                 // Отправляем распознанный текст
                 await this.sendQuestion(text);
+                this.hideVoiceStatus();
             };
             
             this.recognition.onerror = (event) => {
                 console.error('Ошибка распознавания:', event.error);
                 this.showVoiceStatus('❌ Ошибка распознавания');
+                setTimeout(() => this.hideVoiceStatus(), 2000);
                 this.isRecording = false;
             };
             
@@ -162,17 +263,17 @@ const App = {
             statusDiv.id = 'voiceStatus';
             statusDiv.style.cssText = `
                 position: fixed;
-                bottom: 80px;
+                bottom: 100px;
                 left: 50%;
                 transform: translateX(-50%);
-                background: var(--max-blue);
+                background: var(--max-blue, #248bf2);
                 color: white;
-                padding: 8px 16px;
+                padding: 10px 20px;
                 border-radius: 30px;
                 font-size: 14px;
                 z-index: 1000;
-                animation: fadeIn 0.3s ease;
                 white-space: nowrap;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.2);
             `;
             document.body.appendChild(statusDiv);
         }
@@ -198,6 +299,8 @@ const App = {
             }
         } else if (!this.recognition) {
             alert('Ваш браузер не поддерживает голосовой ввод.\nПопробуйте Chrome, Edge или Safari.');
+        } else if (this.isRecording) {
+            this.showVoiceStatus('🎤 Уже слушаю...');
         }
     },
     
@@ -206,13 +309,9 @@ const App = {
     async showSmartQuestions() {
         try {
             // Получаем умные вопросы с бэкенда
-            let questions = [];
+            let questions = await this.getSmartQuestionsFromServer();
             
-            if (window.api && window.api.getSmartQuestions) {
-                const data = await window.api.getSmartQuestions(this.userId);
-                questions = data.questions || [];
-            } else {
-                // Генерируем локально на основе профиля
+            if (!questions || questions.length === 0) {
                 questions = this.generateLocalSmartQuestions();
             }
             
@@ -220,7 +319,6 @@ const App = {
             
             // Показываем вопросы в виде кнопок
             const container = document.getElementById('screenContainer');
-            const originalContent = container.innerHTML;
             
             const questionsHtml = `
                 <div class="smart-questions-container">
@@ -231,9 +329,9 @@ const App = {
                     </div>
                     <div class="smart-questions-list" id="smartQuestionsList">
                         ${questions.map((q, i) => `
-                            <div class="smart-question-item" data-question="${escapeHtml(q)}">
+                            <div class="smart-question-item" data-question="${this.escapeHtml(q)}">
                                 <span class="smart-question-emoji">💭</span>
-                                <span class="smart-question-text">${escapeHtml(q)}</span>
+                                <span class="smart-question-text">${this.escapeHtml(q)}</span>
                             </div>
                         `).join('')}
                     </div>
@@ -406,6 +504,10 @@ const App = {
             .smart-questions-input {
                 margin: 20px 0;
             }
+            .input-group {
+                display: flex;
+                gap: 8px;
+            }
             .smart-question-input {
                 flex: 1;
                 padding: 14px 18px;
@@ -449,7 +551,8 @@ const App = {
         console.log('Контекстное меню');
     },
 
-    // Загрузка имени из localStorage
+    // ========== УПРАВЛЕНИЕ ИМЕНЕМ ==========
+
     loadUserName() {
         const savedName = localStorage.getItem('userName');
         
@@ -460,7 +563,6 @@ const App = {
         }
     },
 
-    // Сохранение имени
     saveUserName(name) {
         if (name && name.trim() !== '') {
             const trimmedName = name.trim();
@@ -479,7 +581,6 @@ const App = {
         return false;
     },
 
-    // Обновление имени во всех местах интерфейса
     updateUserNameInUI() {
         // 1. В левой панели
         const userNameEl = document.getElementById('userName');
@@ -516,13 +617,10 @@ const App = {
         }
     },
 
-    // Показать модальное окно для ввода имени
     showNameModal() {
-        // Убираем предыдущее модальное окно если есть
         const oldModal = document.getElementById('nameModal');
         if (oldModal) oldModal.remove();
         
-        // Создаем модальное окно
         const modal = document.createElement('div');
         modal.id = 'nameModal';
         modal.className = 'modal';
@@ -545,7 +643,6 @@ const App = {
             </div>
         `;
         
-        // Добавляем стили для модального окна если их нет
         if (!document.getElementById('modalStyles')) {
             const style = document.createElement('style');
             style.id = 'modalStyles';
@@ -607,7 +704,6 @@ const App = {
                     color: var(--max-text);
                     font-size: 16px;
                     outline: none;
-                    transition: border-color 0.2s;
                 }
                 
                 .modal-input:focus {
@@ -650,14 +746,12 @@ const App = {
         
         document.body.appendChild(modal);
         
-        // Фокус на поле ввода
         setTimeout(() => {
             const input = document.getElementById('userNameInput');
             if (input) input.focus();
         }, 100);
     },
 
-    // Обработка отправки имени
     handleNameSubmit() {
         const input = document.getElementById('userNameInput');
         if (!input) return;
@@ -667,7 +761,6 @@ const App = {
             this.saveUserName(name);
             this.closeNameModal();
             
-            // Обновляем статус
             const userStatus = document.getElementById('userStatus');
             if (userStatus) userStatus.textContent = '🧠 онлайн';
         } else {
@@ -675,7 +768,6 @@ const App = {
         }
     },
 
-    // Закрыть модальное окно
     closeNameModal() {
         const modal = document.getElementById('nameModal');
         if (modal) {
@@ -686,7 +778,6 @@ const App = {
         }
     },
 
-    // Проверка нужно ли показывать модальное окно
     checkAndShowNameModal() {
         const savedName = localStorage.getItem('userName');
         if (!savedName || savedName === 'Гость') {
@@ -700,7 +791,6 @@ const App = {
         try {
             // Проверяем, есть ли данные профиля
             if (this.profileData) {
-                // Тест пройден - показываем финальный профиль
                 await this.showFinalProfile();
                 return;
             }
@@ -731,7 +821,6 @@ const App = {
         
         const clone = document.importNode(template.content, true);
         
-        // Обновляем имя в приветствии
         const nameSpan = clone.querySelector('#userNamePlaceholder');
         if (nameSpan) nameSpan.textContent = this.userName;
         
@@ -900,7 +989,6 @@ const App = {
         
         const clone = document.importNode(template.content, true);
         
-        // Заполняем данные
         const citySpan = clone.querySelector('#infoCity');
         const genderSpan = clone.querySelector('#infoGender');
         const ageSpan = clone.querySelector('#infoAge');
@@ -998,7 +1086,6 @@ const App = {
         const clone = document.importNode(template.content, true);
         const profileTextDiv = clone.querySelector('#profileText');
         
-        // Генерируем текст профиля
         let profileHtml = '';
         
         if (this.profileData) {
@@ -1045,11 +1132,9 @@ const App = {
         container.innerHTML = '';
         container.appendChild(clone);
         
-        // Показываем шапку чата
         const chatHeader = document.getElementById('chatHeader');
         if (chatHeader) chatHeader.style.display = 'flex';
         
-        // Обновляем статус в шапке
         const botStatus = document.getElementById('botStatus');
         if (botStatus) {
             const modeNames = {
@@ -1061,7 +1146,6 @@ const App = {
         }
         
         setTimeout(() => {
-            // Кнопка "Мысли психолога"
             const thoughtBtn = document.getElementById('psychologistThoughtBtn');
             if (thoughtBtn) {
                 thoughtBtn.addEventListener('click', () => {
@@ -1069,7 +1153,6 @@ const App = {
                 });
             }
             
-            // Кнопка "Хочу высказаться"
             const askBtn = document.getElementById('askQuestionBtn');
             if (askBtn) {
                 askBtn.addEventListener('click', () => {
@@ -1077,7 +1160,6 @@ const App = {
                 });
             }
             
-            // Кнопка "Выбрать цель"
             const goalBtn = document.getElementById('chooseGoalBtn');
             if (goalBtn) {
                 goalBtn.addEventListener('click', () => {
@@ -1085,7 +1167,6 @@ const App = {
                 });
             }
             
-            // Кнопка "Выбрать режим"
             const modeBtn = document.getElementById('chooseModeBtn');
             if (modeBtn) {
                 modeBtn.addEventListener('click', () => {
@@ -1093,7 +1174,7 @@ const App = {
                 });
             }
             
-            // 🔥 НОВАЯ КНОПКА "УМНЫЕ ВОПРОСЫ"
+            // УМНЫЕ ВОПРОСЫ
             const smartQuestionsBtn = document.createElement('button');
             smartQuestionsBtn.className = 'onboarding-btn secondary';
             smartQuestionsBtn.id = 'smartQuestionsBtn';
@@ -1192,6 +1273,7 @@ const App = {
             const sendBtn = document.getElementById('sendQuestionBtn');
             const questionInput = document.getElementById('questionInput');
             const backBtn = document.getElementById('backToProfileBtn');
+            const voiceRecordBtn = document.getElementById('voiceRecordBtn');
             
             if (sendBtn && questionInput) {
                 sendBtn.addEventListener('click', async () => {
@@ -1209,43 +1291,21 @@ const App = {
                 });
             }
             
+            if (voiceRecordBtn) {
+                voiceRecordBtn.addEventListener('click', () => {
+                    this.startVoiceRecognition();
+                });
+            }
+            
             if (backBtn) {
                 backBtn.addEventListener('click', () => {
                     this.showFinalProfile();
                 });
             }
-            
-            // 🔥 ДОБАВЛЯЕМ ГОЛОСОВУЮ КНОПКУ
-            const voiceHint = document.querySelector('.voice-input-hint');
-            if (voiceHint) {
-                const voiceButton = document.createElement('button');
-                voiceButton.className = 'voice-input-button';
-                voiceButton.innerHTML = '🎤';
-                voiceButton.style.cssText = `
-                    width: 48px;
-                    height: 48px;
-                    border-radius: 50%;
-                    background: var(--max-blue);
-                    border: none;
-                    color: white;
-                    font-size: 24px;
-                    cursor: pointer;
-                    margin-left: 8px;
-                `;
-                voiceButton.addEventListener('click', () => {
-                    this.startVoiceRecognition();
-                });
-                
-                const inputGroup = document.querySelector('.input-group');
-                if (inputGroup) {
-                    inputGroup.appendChild(voiceButton);
-                }
-            }
         }, 100);
     },
 
     async sendQuestion(question) {
-        // Показываем индикатор загрузки
         const container = document.getElementById('screenContainer');
         const loadingDiv = document.createElement('div');
         loadingDiv.className = 'thought-loading-container';
@@ -1261,28 +1321,29 @@ const App = {
         container.appendChild(loadingDiv);
         
         try {
-            // Отправляем вопрос через API
-            let response = '';
-            if (window.api && window.api.sendQuestion) {
-                const result = await window.api.sendQuestion(this.userId, question);
-                response = result.response || 'Я вас слушаю. Расскажите подробнее.';
-            } else {
-                // Имитация ответа
-                await new Promise(r => setTimeout(r, 2000));
-                response = `Спасибо за вопрос, ${this.userName}! Это интересная тема. Давай разберёмся вместе. Что именно тебя беспокоит?`;
-            }
+            const result = await this.sendQuestionToServer(question);
+            const response = result.response || 'Я вас слушаю. Расскажите подробнее.';
             
-            // Показываем ответ
             container.innerHTML = originalContent;
             
-            // Добавляем ответ в виде сообщения
+            // Добавляем ответ в чат если есть
             const messagesList = document.getElementById('messagesList');
             if (messagesList) {
+                const userMessage = document.createElement('div');
+                userMessage.className = 'message user-message';
+                userMessage.innerHTML = `
+                    <div class="message-bubble">
+                        <div class="message-text">${this.escapeHtml(question)}</div>
+                        <div class="message-time">только что</div>
+                    </div>
+                `;
+                messagesList.appendChild(userMessage);
+                
                 const botMessage = document.createElement('div');
                 botMessage.className = 'message bot-message';
                 botMessage.innerHTML = `
                     <div class="message-bubble">
-                        <div class="message-text">${escapeHtml(response)}</div>
+                        <div class="message-text">${this.escapeHtml(response)}</div>
                         <div class="message-time">только что</div>
                     </div>
                 `;
@@ -1293,7 +1354,6 @@ const App = {
                     messagesContainer.scrollTop = messagesContainer.scrollHeight;
                 }
             } else {
-                // Если нет чата, показываем просто текст
                 alert(response);
             }
             
@@ -1312,7 +1372,6 @@ const App = {
         
         const clone = document.importNode(template.content, true);
         
-        // Заполняем данные
         const goalUserName = clone.querySelector('#goalUserName');
         if (goalUserName) goalUserName.textContent = this.userName;
         
@@ -1331,7 +1390,6 @@ const App = {
             modeCodeSpan.textContent = modeNames[this.currentMode] || '🔮 КОУЧ';
         }
         
-        // Генерируем цели
         const goalsList = clone.querySelector('#goalsList');
         if (goalsList) {
             const goals = this.getGoalsForProfile();
@@ -1345,7 +1403,6 @@ const App = {
                 </div>
             `).join('');
             
-            // Добавляем обработчики кликов на цели
             setTimeout(() => {
                 const goalItems = goalsList.querySelectorAll('.goal-item');
                 goalItems.forEach(item => {
@@ -1383,10 +1440,8 @@ const App = {
     },
 
     getGoalsForProfile() {
-        // Определяем слабые и сильные стороны на основе профиля
         const scores = this.profileData?.scores || { СБ: 3, ТФ: 3, УБ: 3, ЧВ: 3 };
         
-        // Находим самый слабый вектор
         let weakest = 'СБ';
         let weakestValue = 5;
         for (const [key, val] of Object.entries(scores)) {
@@ -1396,7 +1451,6 @@ const App = {
             }
         }
         
-        // База целей
         const goalsDb = {
             coach: {
                 weak: {
@@ -1490,26 +1544,19 @@ const App = {
         const modeDb = goalsDb[this.currentMode] || goalsDb.coach;
         const goals = [];
         
-        // Добавляем цели для слабого вектора
         if (modeDb.weak && modeDb.weak[weakest]) {
             goals.push(...modeDb.weak[weakest]);
         }
         
-        // Добавляем общие цели
         if (modeDb.general) {
             goals.push(...modeDb.general);
         }
         
-        // Возвращаем первые 6 целей
         return goals.slice(0, 6);
     },
 
     getDifficultyEmoji(difficulty) {
-        const emojis = {
-            'easy': '🟢',
-            'medium': '🟡',
-            'hard': '🔴'
-        };
+        const emojis = { 'easy': '🟢', 'medium': '🟡', 'hard': '🔴' };
         return emojis[difficulty] || '⚪';
     },
 
@@ -1533,7 +1580,6 @@ const App = {
         
         const clone = document.importNode(template.content, true);
         
-        // Заполняем профиль
         const profileCodeSpan = clone.querySelector('#modeProfileCode');
         if (profileCodeSpan && this.profileData) {
             profileCodeSpan.textContent = this.profileData.display_name || 'СБ-4_ТФ-4_УБ-4_ЧВ-4';
@@ -1549,11 +1595,8 @@ const App = {
             
             modeCards.forEach(card => {
                 card.addEventListener('click', () => {
-                    // Убираем выделение со всех
                     modeCards.forEach(c => c.classList.remove('selected'));
-                    // Выделяем выбранный
                     card.classList.add('selected');
-                    
                     const mode = card.dataset.mode;
                     this.setMode(mode);
                 });
@@ -1567,7 +1610,7 @@ const App = {
         }, 100);
     },
 
-    setMode(mode) {
+    async setMode(mode) {
         this.currentMode = mode;
         
         const modeNames = {
@@ -1576,27 +1619,20 @@ const App = {
             trainer: '⚡ ТРЕНЕР'
         };
         
-        // Обновляем статус в шапке
         const botStatus = document.getElementById('botStatus');
         if (botStatus) {
             botStatus.textContent = modeNames[mode] || '🧠 психолог';
         }
         
-        // Сохраняем в API если есть
-        if (window.api && window.api.setMode) {
-            window.api.setMode(this.userId, mode);
-        }
+        await this.saveModeToServer(mode);
         
         alert(`Режим ${modeNames[mode]} активирован!`);
-        
-        // Возвращаемся к профилю
         this.showFinalProfile();
     },
 
     // ========== ЭКРАН "МЫСЛИ ПСИХОЛОГА" ==========
 
     async showPsychologistThought() {
-        // Показываем загрузку
         const loadingTemplate = document.getElementById('psychologistThoughtLoadingScreen');
         if (loadingTemplate) {
             const clone = document.importNode(loadingTemplate.content, true);
@@ -1606,13 +1642,9 @@ const App = {
         }
         
         try {
-            let thought = '';
+            let thought = await this.getPsychologistThoughtFromServer();
             
-            if (window.api && window.api.generateThought) {
-                thought = await window.api.generateThought(this.userId);
-            } else {
-                // Имитация генерации
-                await new Promise(r => setTimeout(r, 3000));
+            if (!thought || thought === 'Мысли психолога еще не сгенерированы.') {
                 thought = this.generateMockThought();
             }
             
@@ -1695,7 +1727,6 @@ const App = {
     showMainChat() {
         console.log('💬 Показываем основной чат');
         
-        // Показываем шапку чата
         const chatHeader = document.getElementById('chatHeader');
         if (chatHeader) chatHeader.style.display = 'flex';
         
@@ -1721,7 +1752,6 @@ const App = {
             </div>
         `;
         
-        // Добавляем стили для чата если их нет
         if (!document.getElementById('chatStyles')) {
             const style = document.createElement('style');
             style.id = 'chatStyles';
@@ -1732,6 +1762,7 @@ const App = {
                     padding: 16px;
                     display: flex;
                     flex-direction: column;
+                    height: calc(100vh - 120px);
                 }
                 
                 .messages-list {
@@ -1761,12 +1792,12 @@ const App = {
                 }
                 
                 .user-message .message-bubble {
-                    background: var(--max-message-user);
+                    background: var(--max-message-user, #2b5278);
                     border-bottom-right-radius: 4px;
                 }
                 
                 .bot-message .message-bubble {
-                    background: var(--max-message-bot);
+                    background: var(--max-message-bot, #1f2c38);
                     border-bottom-left-radius: 4px;
                 }
                 
@@ -1777,15 +1808,15 @@ const App = {
                 
                 .message-time {
                     font-size: 10px;
-                    color: var(--max-text-secondary);
+                    color: var(--max-text-secondary, #8e9aa6);
                     margin-top: 4px;
                     text-align: right;
                 }
                 
                 .input-panel {
                     padding: 12px 16px;
-                    background: var(--max-panel-bg);
-                    border-top: 1px solid var(--max-border);
+                    background: var(--max-panel-bg, #17212b);
+                    border-top: 1px solid var(--max-border, #0f1b26);
                     display: flex;
                     gap: 8px;
                     align-items: center;
@@ -1795,9 +1826,9 @@ const App = {
                     width: 40px;
                     height: 40px;
                     border-radius: 50%;
-                    background: var(--glass-bg);
+                    background: var(--glass-bg, rgba(255,255,255,0.05));
                     border: none;
-                    color: var(--max-text);
+                    color: var(--max-text, #ffffff);
                     font-size: 20px;
                     cursor: pointer;
                 }
@@ -1806,7 +1837,7 @@ const App = {
                     flex: 1;
                     display: flex;
                     gap: 8px;
-                    background: var(--glass-bg);
+                    background: var(--glass-bg, rgba(255,255,255,0.05));
                     border-radius: 24px;
                     padding: 4px 4px 4px 16px;
                 }
@@ -1815,17 +1846,21 @@ const App = {
                     flex: 1;
                     background: transparent;
                     border: none;
-                    color: var(--max-text);
+                    color: var(--max-text, #ffffff);
                     font-size: 16px;
                     outline: none;
                     padding: 8px 0;
+                }
+                
+                .message-input::placeholder {
+                    color: var(--max-text-secondary, #8e9aa6);
                 }
                 
                 .send-btn {
                     width: 36px;
                     height: 36px;
                     border-radius: 50%;
-                    background: var(--max-blue);
+                    background: var(--max-blue, #248bf2);
                     border: none;
                     color: white;
                     font-size: 18px;
@@ -1851,12 +1886,11 @@ const App = {
             const sendMessage = async () => {
                 const text = messageInput.value.trim();
                 if (text) {
-                    // Сообщение пользователя
                     const userMessage = document.createElement('div');
                     userMessage.className = 'message user-message';
                     userMessage.innerHTML = `
                         <div class="message-bubble">
-                            <div class="message-text">${escapeHtml(text)}</div>
+                            <div class="message-text">${this.escapeHtml(text)}</div>
                             <div class="message-time">только что</div>
                         </div>
                     `;
@@ -1867,7 +1901,6 @@ const App = {
                     const container = document.querySelector('.messages-container');
                     if (container) container.scrollTop = container.scrollHeight;
                     
-                    // Отправляем вопрос
                     await this.sendQuestion(text);
                 }
             };
@@ -1879,7 +1912,6 @@ const App = {
                 });
             }
             
-            // 🔥 ГОЛОСОВАЯ КНОПКА В ЧАТЕ
             if (voiceBtn) {
                 voiceBtn.addEventListener('click', () => {
                     this.startVoiceRecognition();
@@ -1892,58 +1924,17 @@ const App = {
                 });
             }
         }, 100);
+    },
+
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
 };
-
-// Вспомогательная функция для экранирования HTML
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
 
 // Запуск
 document.addEventListener('DOMContentLoaded', () => App.init());
 
 // Делаем App доступным глобально
 window.App = App;
-
-// API для совместимости
-window.api = window.api || {
-    async getUserStatus(userId) {
-        console.log('📊 Запрос статуса для:', userId);
-        return {
-            user_name: localStorage.getItem('userName') || 'Гость',
-            context_complete: false,
-            test_completed: false,
-            profile_data: null
-        };
-    },
-    
-    async sendQuestion(userId, question) {
-        console.log('📝 Вопрос от', userId, ':', question);
-        return {
-            response: `Спасибо за вопрос, ${localStorage.getItem('userName') || 'друг'}! Давайте разберёмся вместе. Что именно вас беспокоит?`
-        };
-    },
-    
-    async generateThought(userId) {
-        return `🧠 Анализ показывает, что вы находитесь в поиске. Ваш профиль указывает на сильную чувствительность к внешней оценке. Это не слабость — это ваш внутренний компас, который иногда даёт ложные сигналы.
-
-Попробуйте в ближайшие дни задавать себе вопрос: "Это действительно моё желание или я хочу понравиться другим?"
-
-Вы увидите, как много решений принимается на автомате. Осознанность — первый шаг к свободе.`;
-    },
-    
-    async getSmartQuestions(userId) {
-        return {
-            questions: [
-                'Как перестать бояться конфликтов?',
-                'Как увеличить доход без новых вложений?',
-                'С чего начать изменения?',
-                'Почему я злюсь внутри, но молчу?',
-                'Как защищать границы без агрессии?'
-            ]
-        };
-    }
-};

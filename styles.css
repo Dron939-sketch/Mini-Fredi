@@ -1,5 +1,5 @@
 /* ========== STYLES.CSS ========== */
-/* ПОЛНАЯ ПОДДЕРЖКА ЭМОДЗИ + ВСЕ ФИЧИ + ВНУТРЕННЯЯ ПОДСВЕТКА + СТИЛИ ТЕСТА + ЭКРАНЫ ПОСЛЕ ТЕСТА */
+/* ПОЛНАЯ ПОДДЕРЖКА ЭМОДЗИ + ВСЕ ФИЧИ + ВНУТРЕННЯЯ ПОДСВЕТКА + СТИЛИ ТЕСТА + ЭКРАНЫ ПОСЛЕ ТЕСТА + ЛИЧНЫЙ КАБИНЕТ */
 
 /* 1. ГЛОБАЛЬНАЯ ПОДДЕРЖКА ЭМОДЗИ - В САМОМ НАЧАЛЕ */
 * {
@@ -140,9 +140,9 @@
     
     /* Остальные параметры сообщений */
     --message-min-width: 80px;
-    --message-bubble-radius: 22px;     /* Увеличено с 18px */
-    --message-padding-vertical: 10px;  /* Увеличено с 8px */
-    --message-padding-horizontal: 14px; /* Увеличено с 12px */
+    --message-bubble-radius: 22px;
+    --message-padding-vertical: 10px;
+    --message-padding-horizontal: 14px;
     --message-gap: 4px;
     --message-time-font: 11px;
     --message-text-font: 16px;
@@ -164,10 +164,10 @@
     --text-xxl: 28px;
     
     /* Размеры телефона - АВТО-ПОДБОР */
-    --phone-max-width: min(400px, 95vw);     /* Не шире 400px или 95% экрана */
-    --phone-max-height: min(800px, 90vh);    /* Не выше 800px или 90% экрана */
+    --phone-max-width: min(400px, 95vw);
+    --phone-max-height: min(800px, 90vh);
     --phone-min-width: 320px;
-    --phone-min-height: 600px;                /* Минимальная высота */
+    --phone-min-height: 600px;
 }
 
 /* ===== СВЕТЛАЯ ТЕМА (автоматически под систему) ===== */
@@ -187,13 +187,11 @@
         --max-blue: #248bf2;
         --max-blue-hover: #1a7ad9;
         
-        /* ВИЗУАЛЬНЫЕ УЛУЧШЕНИЯ для светлой темы */
         --glass-bg: rgba(255, 255, 255, 0.85);
         --glass-border: rgba(0, 0, 0, 0.05);
         --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
     }
     
-    /* Корректировка уголков для светлой темы */
     .message.bot-message .message-bubble {
         border: 1px solid #d0d0d0;
     }
@@ -219,7 +217,7 @@ html, body {
     height: 100%;
     width: 100%;
     overflow: hidden;
-    background-color: #000000;  /* Чёрный фон вокруг телефона */
+    background-color: #000000;
 }
 
 body {
@@ -241,20 +239,17 @@ body {
     height: auto;
     max-height: var(--phone-max-height);
     min-height: var(--phone-min-height);
-    aspect-ratio: 9/19;                      /* Пропорции телефона */
+    aspect-ratio: 9/19;
     background-color: var(--max-bg);
-    border-radius: 44px;                      /* Увеличено с 40px */
+    border-radius: 44px;
     overflow: hidden;
     margin: 20px auto;
     position: relative;
-    
-    /* ВАРИАНТ 3: Внутренняя подсветка + тонкая рамка */
     box-shadow: 
-        inset 0 0 0 1px rgba(255, 255, 255, 0.1),  /* Внутренняя подсветка */
-        0 25px 50px -12px rgba(0, 0, 0, 0.5);      /* Внешняя тень */
+        inset 0 0 0 1px rgba(255, 255, 255, 0.1),
+        0 25px 50px -12px rgba(0, 0, 0, 0.5);
 }
 
-/* Тонкая внешняя рамка */
 .phone-container::after {
     content: '';
     position: absolute;
@@ -268,12 +263,10 @@ body {
     z-index: 10;
 }
 
-/* Убираем старый светящийся край */
 .phone-container::before {
     display: none;
 }
 
-/* Шумовая текстура */
 .phone-container .noise-texture {
     content: '';
     position: absolute;
@@ -287,7 +280,6 @@ body {
     z-index: 1;
 }
 
-/* Для светлой темы */
 @media (prefers-color-scheme: light) {
     .phone-container {
         box-shadow: 
@@ -300,7 +292,6 @@ body {
     }
 }
 
-/* На реальных телефонах - на весь экран */
 @media (max-width: 768px) and (max-height: 900px) {
     .phone-container {
         max-width: 100%;
@@ -318,7 +309,6 @@ body {
     }
 }
 
-/* На планшетах в горизонтальной ориентации */
 @media (min-width: 769px) and (max-width: 1024px) and (orientation: landscape) {
     .phone-container {
         --phone-max-width: 380px;
@@ -326,7 +316,6 @@ body {
     }
 }
 
-/* На очень высоких экранах (4K) */
 @media (min-height: 1200px) {
     .phone-container {
         --phone-max-height: 900px;
@@ -334,7 +323,6 @@ body {
     }
 }
 
-/* Альбомная ориентация на телефонах */
 @media (max-width: 900px) and (orientation: landscape) {
     .phone-container {
         flex-direction: row;
@@ -372,7 +360,6 @@ body {
     box-shadow: var(--glass-shadow) !important;
 }
 
-/* Специфичные скругления для панелей */
 .chat-header {
     border-bottom: 1px solid var(--glass-border);
     border-radius: 44px 44px 0 0;
@@ -389,8 +376,6 @@ body {
 }
 
 /* ===== ТЕКСТУРЫ И УЗОРЫ ===== */
-
-/* Основной фон с градиентами */
 .screen-container {
     background: 
         radial-gradient(circle at 20% 30%, rgba(36, 139, 242, 0.03) 0%, transparent 40%),
@@ -400,7 +385,6 @@ body {
     z-index: 1;
 }
 
-/* Точечный узор */
 .screen-container::before {
     content: '';
     position: absolute;
@@ -416,7 +400,6 @@ body {
     z-index: 0;
 }
 
-/* Текстурные сообщения */
 .message-bubble {
     position: relative;
     overflow: hidden;
@@ -445,8 +428,6 @@ body {
 }
 
 /* ===== ЦЕНТРИРОВАНИЕ ЭКРАНОВ ===== */
-
-/* Контейнер экранов */
 .screen-container {
     flex: 1;
     display: flex;
@@ -455,7 +436,6 @@ body {
     overflow-y: auto;
 }
 
-/* Для экранов с вертикальным центрированием (приветствие, тест) */
 .centered-screen {
     display: flex;
     flex-direction: column;
@@ -466,12 +446,6 @@ body {
     text-align: center;
     position: relative;
     z-index: 2;
-}
-
-/* Визуальное улучшение - волны для приветствия */
-.centered-screen:first-child {
-    position: relative;
-    overflow: hidden;
 }
 
 .centered-screen:first-child::before {
@@ -501,7 +475,6 @@ body {
     to { transform: rotate(360deg); }
 }
 
-/* Для экранов с прокруткой (результаты, длинные тексты) */
 .scrollable-screen {
     display: flex;
     flex-direction: column;
@@ -513,7 +486,6 @@ body {
     z-index: 2;
 }
 
-/* Для экранов с формой (ввод города, возраста) */
 .form-screen {
     display: flex;
     flex-direction: column;
@@ -526,7 +498,6 @@ body {
     z-index: 2;
 }
 
-/* Для экранов с выбором (пол, режим) */
 .choice-screen {
     display: flex;
     flex-direction: column;
@@ -540,7 +511,6 @@ body {
     z-index: 2;
 }
 
-/* Заголовки на центрированных экранах */
 .centered-screen h1, 
 .centered-screen h2, 
 .centered-screen h3,
@@ -555,7 +525,6 @@ body {
     margin-bottom: var(--spacing-md);
 }
 
-/* Текст на центрированных экранах */
 .centered-screen p,
 .form-screen p,
 .choice-screen p {
@@ -564,8 +533,7 @@ body {
     margin-bottom: var(--spacing-md);
 }
 
-/* ===== ИСПРАВЛЕННАЯ ЦЕНТРОВКА КНОПОК ===== */
-/* Кнопки на центрированных экранах */
+/* ===== КНОПКИ ===== */
 .centered-screen .onboarding-buttons,
 .form-screen .gender-buttons,
 .choice-screen .mode-buttons,
@@ -579,11 +547,10 @@ body {
     gap: var(--spacing-md);
     width: 100%;
     max-width: 280px;
-    margin: var(--spacing-lg) auto 0 auto;  /* Центрирование через auto margin */
+    margin: var(--spacing-lg) auto 0 auto;
     align-items: center;
 }
 
-/* Кнопки в ряду (горизонтальное расположение) */
 .button-row {
     display: flex;
     flex-direction: row;
@@ -596,7 +563,6 @@ body {
     flex-wrap: wrap;
 }
 
-/* Отдельные кнопки */
 .onboarding-btn,
 .context-submit,
 .gender-btn,
@@ -618,10 +584,9 @@ body {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    margin: 0 auto;  /* Центрирование самой кнопки */
+    margin: 0 auto;
 }
 
-/* Кнопки в ряду */
 .button-row .onboarding-btn,
 .button-row .gender-btn,
 .button-row .mode-btn {
@@ -631,10 +596,9 @@ body {
     flex: 1;
 }
 
-/* Специально для гендерных кнопок */
 .gender-buttons {
     display: flex;
-    flex-direction: row !important;  /* В ряд на десктопе */
+    flex-direction: row !important;
     justify-content: center;
     gap: var(--spacing-lg);
     flex-wrap: wrap;
@@ -662,7 +626,7 @@ body {
 }
 
 .gender-emoji {
-    font-size: 2.5em;  /* Большие эмодзи */
+    font-size: 2.5em;
     margin-bottom: 8px;
     display: block;
     line-height: 1;
@@ -672,7 +636,6 @@ body {
     font-size: var(--text-sm);
 }
 
-/* Контейнер для ввода с кнопкой */
 .context-input-group {
     display: flex;
     gap: var(--spacing-sm);
@@ -734,7 +697,6 @@ body {
     color: var(--max-text);
 }
 
-/* Для мобильных устройств - вертикальное расположение */
 @media (max-width: 480px) {
     .gender-buttons {
         flex-direction: column !important;
@@ -1111,15 +1073,11 @@ body {
     word-wrap: break-word;
     width: fit-content;
     max-width: 100%;
-    
-    /* Улучшенные тени и границы */
     box-shadow: 
         0 1px 2px rgba(0, 0, 0, 0.3),
         0 2px 4px rgba(0, 0, 0, 0.1),
         inset 0 -1px 0 rgba(255, 255, 255, 0.1);
-    border: 1px solid #3a4a5a;  /* Более контрастная граница */
-    
-    /* Уголок как в Telegram */
+    border: 1px solid #3a4a5a;
     position: relative;
 }
 
@@ -1144,7 +1102,7 @@ body {
         0 1px 2px rgba(0, 0, 0, 0.3),
         0 2px 4px rgba(0, 0, 0, 0.15),
         inset 0 -1px 0 rgba(255, 255, 255, 0.2);
-    border: 1px solid #4a78b0;  /* Более контрастная граница */
+    border: 1px solid #4a78b0;
     position: relative;
 }
 
@@ -1180,7 +1138,6 @@ body {
     margin-top: 4px;
 }
 
-/* Ховер-эффект */
 .message-bubble:hover {
     transform: translateY(-1px) scale(1.01);
     transition: transform 0.2s cubic-bezier(0.2, 0.9, 0.3, 1.1);
@@ -1305,7 +1262,6 @@ body {
     color: var(--max-blue);
 }
 
-/* Палитра реакций */
 .reactions-picker {
     display: none;
     position: absolute;
@@ -1351,32 +1307,6 @@ body {
     transform: scale(1.3);
 }
 
-/* Тестовые сообщения */
-.message.test-message .message-bubble {
-    background-color: var(--max-panel-bg);
-    border: 1px dashed var(--max-text-secondary);
-    opacity: 0.7;
-    font-style: italic;
-}
-
-.message.test-message .message-bubble::before {
-    display: none;
-}
-
-/* Группировка сообщений */
-.message-group .message-bubble {
-    border-radius: 4px;
-}
-
-.message-group-first .message-bubble {
-    border-radius: 22px 22px 4px 4px;
-}
-
-.message-group-last .message-bubble {
-    border-radius: 4px 4px 22px 22px;
-}
-
-/* Индикатор печати */
 .typing-indicator {
     display: none;
     gap: 4px;
@@ -1473,7 +1403,6 @@ body {
     color: var(--max-text-secondary);
 }
 
-/* Улучшенная кнопка отправки */
 .send-btn {
     width: 36px;
     height: 36px;
@@ -1507,8 +1436,6 @@ body {
 }
 
 /* ===== СТИЛИ ДЛЯ ЭКРАНОВ ===== */
-
-/* Приветствие */
 .onboarding-container {
     display: flex;
     flex-direction: column;
@@ -1585,7 +1512,6 @@ body {
     background-color: var(--max-hover);
 }
 
-/* Сбор контекста */
 .context-container {
     display: flex;
     flex-direction: column;
@@ -1613,7 +1539,6 @@ body {
     margin-bottom: var(--spacing-lg);
 }
 
-/* Завершение контекста */
 .context-complete-container {
     display: flex;
     flex-direction: column;
@@ -1657,7 +1582,6 @@ body {
     margin: var(--spacing-lg) auto 0 auto;
 }
 
-/* Преимущества теста */
 .benefits-container {
     display: flex;
     flex-direction: column;
@@ -1714,9 +1638,7 @@ body {
     margin: var(--spacing-lg) auto 0 auto;
 }
 
-/* ========== ДОПОЛНИТЕЛЬНЫЕ СТИЛИ ДЛЯ ЭКРАНОВ ПОСЛЕ ТЕСТА ========== */
-
-/* 1. СТИЛИ ДЛЯ ФИНАЛЬНОГО ПРОФИЛЯ */
+/* ========== СТИЛИ ДЛЯ ЭКРАНОВ ПОСЛЕ ТЕСТА ========== */
 .final-profile-container {
     padding: 20px;
     overflow-y: auto;
@@ -1758,29 +1680,6 @@ body {
     color: var(--max-text);
 }
 
-.profile-section {
-    margin-bottom: 20px;
-}
-
-.profile-section h3 {
-    font-size: 18px;
-    margin-bottom: 12px;
-    color: var(--max-blue);
-}
-
-.profile-section h4 {
-    font-size: 14px;
-    font-weight: 600;
-    margin-bottom: 8px;
-    color: var(--max-text);
-}
-
-.profile-section p {
-    font-size: 14px;
-    line-height: 1.5;
-    color: var(--max-text-secondary);
-}
-
 .profile-buttons {
     display: flex;
     flex-direction: column;
@@ -1798,7 +1697,7 @@ body {
     margin: 0;
 }
 
-/* 2. СТИЛИ ДЛЯ ЭКРАНА ВОПРОСА */
+/* ========== СТИЛИ ДЛЯ ЭКРАНА ВОПРОСА ========== */
 .ask-question-container {
     padding: 20px;
     display: flex;
@@ -1887,7 +1786,7 @@ body {
     margin-top: 20px;
 }
 
-/* 3. СТИЛИ ДЛЯ ВЫБОРА ЦЕЛЕЙ */
+/* ========== СТИЛИ ДЛЯ ВЫБОРА ЦЕЛЕЙ ========== */
 .choose-goal-container {
     padding: 20px;
     overflow-y: auto;
@@ -1968,12 +1867,6 @@ body {
     margin-top: 4px;
 }
 
-.goal-difficulty {
-    font-size: 11px;
-    margin-top: 6px;
-    color: var(--max-text-secondary);
-}
-
 .custom-goal {
     margin: 16px 0;
 }
@@ -1983,7 +1876,7 @@ body {
     margin-top: 16px;
 }
 
-/* 4. СТИЛИ ДЛЯ ВЫБОРА РЕЖИМА */
+/* ========== СТИЛИ ДЛЯ ВЫБОРА РЕЖИМА ========== */
 .choose-mode-container {
     padding: 20px;
     overflow-y: auto;
@@ -2072,7 +1965,7 @@ body {
     margin-top: 20px;
 }
 
-/* 5. СТИЛИ ДЛЯ МЫСЛЕЙ ПСИХОЛОГА */
+/* ========== СТИЛИ ДЛЯ МЫСЛЕЙ ПСИХОЛОГА ========== */
 .thought-loading-container {
     padding: 40px 20px;
     display: flex;
@@ -2166,229 +2059,7 @@ body {
     flex: 1;
 }
 
-/* 6. ДОПОЛНИТЕЛЬНЫЕ АНИМАЦИИ */
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-@keyframes pulse {
-    0%, 100% {
-        opacity: 0.5;
-        transform: scale(1);
-    }
-    50% {
-        opacity: 1;
-        transform: scale(1.1);
-    }
-}
-
-/* 7. АДАПТИВНОСТЬ ДЛЯ МОБИЛЬНЫХ */
-@media (max-width: 480px) {
-    .profile-buttons .button-row {
-        flex-direction: column;
-    }
-    
-    .thought-buttons {
-        flex-direction: column;
-    }
-    
-    .mode-cards {
-        gap: 12px;
-    }
-    
-    .mode-card {
-        padding: 16px;
-    }
-    
-    .profile-text {
-        padding: 16px;
-    }
-    
-    .goals-list {
-        gap: 10px;
-    }
-    
-    .goal-item {
-        padding: 14px;
-    }
-}
-
-/* 8. СТИЛИ ДЛЯ СКРОЛЛБАРА В НОВЫХ ЭКРАНАХ */
-.final-profile-container::-webkit-scrollbar,
-.choose-goal-container::-webkit-scrollbar,
-.choose-mode-container::-webkit-scrollbar,
-.thought-result-container::-webkit-scrollbar,
-.ask-question-container::-webkit-scrollbar {
-    width: 4px;
-}
-
-.final-profile-container::-webkit-scrollbar-track,
-.choose-goal-container::-webkit-scrollbar-track,
-.choose-mode-container::-webkit-scrollbar-track,
-.thought-result-container::-webkit-scrollbar-track,
-.ask-question-container::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.final-profile-container::-webkit-scrollbar-thumb,
-.choose-goal-container::-webkit-scrollbar-thumb,
-.choose-mode-container::-webkit-scrollbar-thumb,
-.thought-result-container::-webkit-scrollbar-thumb,
-.ask-question-container::-webkit-scrollbar-thumb {
-    background: var(--max-text-secondary);
-    border-radius: 4px;
-}
-
-/* Анимации */
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(5px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-/* ===== ДОПОЛНИТЕЛЬНЫЕ УЛУЧШЕНИЯ ===== */
-
-/* Эффекты для кнопок */
-.onboarding-btn:active,
-.gender-btn:active,
-.context-submit:active,
-.send-btn:active,
-.reaction:active,
-.goal-item:active,
-.mode-card:active,
-.question-submit:active {
-    transform: scale(0.97);
-    transition: transform 0.1s;
-}
-
-/* Плавный скролл */
-.screen-container {
-    scroll-behavior: smooth;
-}
-
-/* Кастомный скроллбар */
-.screen-container::-webkit-scrollbar {
-    width: 4px;
-}
-
-.screen-container::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.screen-container::-webkit-scrollbar-thumb {
-    background: linear-gradient(180deg, var(--max-blue), #5a9eff);
-    border-radius: 4px;
-}
-
-.screen-container::-webkit-scrollbar-thumb:hover {
-    background: var(--max-blue);
-}
-
-/* Увеличенные области для сенсорных экранов */
-.onboarding-btn,
-.gender-btn,
-.context-submit,
-.send-btn,
-.reaction,
-.goal-item,
-.mode-card,
-.question-submit {
-    min-height: 48px;
-}
-
-/* Маркдаун-форматирование */
-.markdown-content {
-    line-height: 1.6;
-}
-
-.markdown-content strong {
-    color: var(--max-blue);
-    font-weight: 600;
-}
-
-.markdown-content em {
-    color: var(--max-text-secondary);
-    font-style: italic;
-}
-
-.markdown-content ul, 
-.markdown-content ol {
-    padding-left: 20px;
-    margin: 10px 0;
-}
-
-.markdown-content li {
-    margin-bottom: 5px;
-}
-
-.markdown-content blockquote {
-    border-left: 3px solid var(--max-blue);
-    padding-left: 15px;
-    color: var(--max-text-secondary);
-    margin: 10px 0;
-}
-
-.markdown-content code {
-    background-color: var(--max-panel-bg);
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-family: monospace;
-    font-size: 14px;
-}
-
-/* Поддержка безопасной зоны на iPhone */
-@supports (padding: max(0px)) {
-    .chat-header {
-        padding-top: max(var(--spacing-sm), env(safe-area-inset-top));
-        padding-left: max(var(--spacing-lg), env(safe-area-inset-left));
-        padding-right: max(var(--spacing-lg), env(safe-area-inset-right));
-    }
-    
-    .input-panel {
-        padding-bottom: max(var(--spacing-sm), env(safe-area-inset-bottom));
-        padding-left: max(var(--spacing-lg), env(safe-area-inset-left));
-        padding-right: max(var(--spacing-lg), env(safe-area-inset-right));
-    }
-    
-    .chats-panel {
-        padding-top: env(safe-area-inset-top);
-        padding-bottom: env(safe-area-inset-bottom);
-    }
-}
-
-/* Текстурные разделители */
-.date-divider {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    margin: 24px 0;
-    color: var(--max-text-secondary);
-    font-size: 12px;
-    position: relative;
-    z-index: 2;
-}
-
-.date-divider::before,
-.date-divider::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: linear-gradient(90deg, 
-        transparent 0%,
-        var(--max-border-light) 20%,
-        var(--max-border-light) 80%,
-        transparent 100%);
-}
-
-/* ========== СТИЛИ ДЛЯ ТЕСТА КАК В TELEGRAM ========== */
-
-/* Контейнер для сообщений теста */
+/* ========== СТИЛИ ДЛЯ ТЕСТА ========== */
 .test-messages-container {
     display: flex;
     flex-direction: column;
@@ -2399,7 +2070,6 @@ body {
     scroll-behavior: smooth;
 }
 
-/* Список сообщений теста */
 .test-messages-list {
     display: flex;
     flex-direction: column;
@@ -2408,7 +2078,6 @@ body {
     gap: 6px;
 }
 
-/* Стили для скроллбара теста */
 .test-messages-container::-webkit-scrollbar {
     width: 4px;
 }
@@ -2422,7 +2091,6 @@ body {
     border-radius: 4px;
 }
 
-/* ===== КНОПКИ ТЕСТА КАК В TELEGRAM ===== */
 .message-buttons {
     display: flex;
     flex-direction: column;
@@ -2431,7 +2099,6 @@ body {
     margin-bottom: 4px;
 }
 
-/* Кнопка с эффектом стекла */
 .message-button {
     background: rgba(128, 128, 128, 0.2);
     backdrop-filter: blur(12px);
@@ -2453,7 +2120,6 @@ body {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
-/* Эффект при наведении */
 .message-button:hover {
     background: rgba(128, 128, 128, 0.3);
     border-color: rgba(255, 255, 255, 0.2);
@@ -2461,13 +2127,11 @@ body {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
-/* Эффект при нажатии */
 .message-button:active {
     transform: translateY(1px);
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
 }
 
-/* Анимация пульсации при нажатии */
 .message-button::after {
     content: '';
     position: absolute;
@@ -2497,17 +2161,14 @@ body {
     }
 }
 
-/* Первая кнопка в списке */
 .message-buttons .message-button:first-child {
     margin-top: 2px;
 }
 
-/* Последняя кнопка в списке */
 .message-buttons .message-button:last-child {
     margin-bottom: 2px;
 }
 
-/* Для светлой темы */
 @media (prefers-color-scheme: light) {
     .message-button {
         background: rgba(200, 200, 200, 0.3);
@@ -2521,7 +2182,6 @@ body {
     }
 }
 
-/* Индикатор печати для теста */
 .test-typing-indicator {
     display: flex;
     gap: 4px;
@@ -2563,4 +2223,524 @@ body {
 
 .hidden {
     display: none !important;
+}
+
+/* ============================================
+   ЛИЧНЫЙ КАБИНЕТ - КОНСОРЦИУМ ФРЕДИ
+   Версия 1.0
+   ============================================ */
+
+/* Контейнер дашборда */
+.dashboard-container {
+    padding: 20px;
+    overflow-y: auto;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    animation: fadeIn 0.3s ease;
+}
+
+/* Шапка с профилем */
+.dashboard-header {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 28px;
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    backdrop-filter: blur(12px);
+    box-shadow: var(--glass-shadow);
+}
+
+.user-welcome {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.user-avatar {
+    width: 64px;
+    height: 64px;
+    background: linear-gradient(135deg, var(--max-blue), #6c5ce7);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.avatar-initial {
+    font-size: 28px;
+    font-weight: bold;
+    color: white;
+}
+
+.user-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.user-name {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--max-text);
+}
+
+.user-profile {
+    font-size: 12px;
+    color: var(--max-blue);
+    font-family: monospace;
+    margin-top: 4px;
+    background: rgba(36, 139, 242, 0.1);
+    padding: 4px 8px;
+    border-radius: 20px;
+    display: inline-block;
+    width: fit-content;
+}
+
+.user-stats {
+    display: flex;
+    gap: 20px;
+}
+
+.stat-item {
+    text-align: center;
+}
+
+.stat-value {
+    font-size: 24px;
+    font-weight: bold;
+    color: var(--max-blue);
+    display: block;
+}
+
+.stat-label {
+    font-size: 11px;
+    color: var(--max-text-secondary);
+}
+
+/* Голосовой ввод на дашборде */
+.voice-input-dashboard {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 60px;
+    padding: 4px;
+    backdrop-filter: blur(12px);
+}
+
+.voice-record-btn-large {
+    width: 100%;
+    padding: 16px 20px;
+    background: var(--max-blue);
+    border: none;
+    border-radius: 60px;
+    color: white;
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    transition: all 0.2s;
+    font-weight: 500;
+}
+
+.voice-record-btn-large:hover {
+    transform: scale(1.02);
+    background: var(--max-blue-hover);
+}
+
+.voice-record-btn-large.recording {
+    background: var(--max-red);
+    animation: pulse-red 1s infinite;
+}
+
+@keyframes pulse-red {
+    0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(244, 67, 54, 0.4);
+    }
+    50% {
+        transform: scale(1.02);
+        box-shadow: 0 0 0 8px rgba(244, 67, 54, 0);
+    }
+}
+
+.voice-icon {
+    font-size: 24px;
+}
+
+.voice-status-dashboard {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 12px;
+    background: rgba(244, 67, 54, 0.1);
+    border-radius: 40px;
+    margin-top: 8px;
+}
+
+.recording-pulse {
+    width: 12px;
+    height: 12px;
+    background: var(--max-red);
+    border-radius: 50%;
+    animation: pulse-dot 1s infinite;
+}
+
+@keyframes pulse-dot {
+    0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.5;
+        transform: scale(1.2);
+    }
+}
+
+.recording-text {
+    font-size: 14px;
+    color: var(--max-red);
+    font-weight: 500;
+}
+
+.dashboard-recording-timer {
+    font-size: 14px;
+    font-weight: bold;
+    color: var(--max-red);
+    font-family: monospace;
+}
+
+/* Сетка модулей */
+.modules-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 12px;
+}
+
+.module-card {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-left-width: 4px;
+    border-radius: 20px;
+    padding: 16px 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+    backdrop-filter: blur(8px);
+}
+
+.module-card:hover {
+    transform: translateY(-4px);
+    border-color: var(--max-blue);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+}
+
+.module-icon {
+    font-size: 36px;
+    margin-bottom: 8px;
+}
+
+.module-name {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.module-desc {
+    font-size: 10px;
+    color: var(--max-text-secondary);
+    line-height: 1.3;
+}
+
+/* Быстрые действия */
+.quick-actions {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 24px;
+    padding: 16px;
+    backdrop-filter: blur(8px);
+}
+
+.quick-actions-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--max-text-secondary);
+    margin-bottom: 12px;
+}
+
+.quick-actions-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+}
+
+.quick-action {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.quick-action:hover {
+    background: rgba(36, 139, 242, 0.1);
+    transform: translateY(-2px);
+}
+
+.action-icon {
+    font-size: 24px;
+}
+
+.action-name {
+    font-size: 11px;
+    color: var(--max-text-secondary);
+}
+
+/* Всплывающее сообщение */
+.floating-message {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    right: 20px;
+    z-index: 1000;
+    animation: slideUp 0.3s ease;
+}
+
+.floating-message-content {
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--glass-border);
+    border-radius: 24px;
+    padding: 16px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.floating-message.success .floating-message-content {
+    border-left: 4px solid var(--max-green);
+}
+
+.floating-message.error .floating-message-content {
+    border-left: 4px solid var(--max-red);
+}
+
+.floating-message.info .floating-message-content {
+    border-left: 4px solid var(--max-blue);
+}
+
+.floating-message-text {
+    flex: 1;
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+.floating-message-close {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    cursor: pointer;
+    font-size: 18px;
+    transition: all 0.2s;
+}
+
+.floating-message-close:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Экран "Пройдите тест" */
+.dashboard-test-required {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100%;
+    text-align: center;
+    padding: 40px 20px;
+}
+
+.test-required-icon {
+    font-size: 64px;
+    margin-bottom: 24px;
+    animation: bounce 2s infinite;
+}
+
+@keyframes bounce {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-10px);
+    }
+}
+
+.test-required-title {
+    font-size: 28px;
+    font-weight: bold;
+    margin-bottom: 16px;
+    background: linear-gradient(135deg, var(--max-blue), #6c5ce7);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+.test-required-text {
+    font-size: 16px;
+    color: var(--max-text-secondary);
+    line-height: 1.6;
+    margin-bottom: 32px;
+    max-width: 400px;
+}
+
+.test-required-btn {
+    background: var(--max-blue);
+    border: none;
+    border-radius: 40px;
+    padding: 14px 32px;
+    font-size: 18px;
+    font-weight: 600;
+    color: white;
+    cursor: pointer;
+    margin-bottom: 12px;
+    transition: all 0.2s;
+    width: 100%;
+    max-width: 280px;
+}
+
+.test-required-btn:hover {
+    transform: scale(1.02);
+    background: var(--max-blue-hover);
+}
+
+.test-required-btn.secondary {
+    background: transparent;
+    border: 1px solid var(--glass-border);
+    color: var(--max-text);
+}
+
+.test-required-btn.secondary:hover {
+    background: var(--glass-bg);
+}
+
+/* Экран ошибки */
+.dashboard-error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100%;
+    text-align: center;
+    padding: 40px 20px;
+}
+
+.error-icon {
+    font-size: 64px;
+    margin-bottom: 24px;
+}
+
+.error-title {
+    font-size: 24px;
+    font-weight: bold;
+    margin-bottom: 16px;
+    color: var(--max-red);
+}
+
+.error-text {
+    font-size: 16px;
+    color: var(--max-text-secondary);
+    line-height: 1.6;
+}
+
+/* Адаптивность для мобильных */
+@media (max-width: 480px) {
+    .dashboard-header {
+        flex-direction: column;
+        gap: 16px;
+        text-align: center;
+    }
+    
+    .user-welcome {
+        flex-direction: column;
+    }
+    
+    .modules-grid {
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    }
+    
+    .quick-actions-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .module-card {
+        padding: 12px 8px;
+    }
+    
+    .module-icon {
+        font-size: 28px;
+    }
+    
+    .module-name {
+        font-size: 12px;
+    }
+    
+    .stat-value {
+        font-size: 20px;
+    }
+    
+    .test-required-title {
+        font-size: 24px;
+    }
+    
+    .test-required-text {
+        font-size: 14px;
+    }
+}
+
+/* Общие анимации */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 0.5;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.1);
+    }
 }

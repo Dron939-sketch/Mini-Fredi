@@ -20,6 +20,38 @@ let isWaitingForInterpretation = false;
 let interpretationPollingInterval = null;
 
 // ============================================
+// ФУНКЦИЯ ФОРМАТИРОВАНИЯ ТЕКСТА
+// ============================================
+
+function formatText(text) {
+    if (!text) return '';
+    
+    let formatted = text;
+    
+    // Жирный текст: **текст** → <strong>текст</strong>
+    formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    
+    // Курсив: *текст* → <em>текст</em> (но не заменяем внутри жирного)
+    formatted = formatted.replace(/(?<!\*)\*(?!\*)(.*?)(?<!\*)\*(?!\*)/g, '<em>$1</em>');
+    
+    // Заголовки: ### текст → <h3>текст</h3>
+    formatted = formatted.replace(/^### (.*?)$/gm, '<h3>$1</h3>');
+    formatted = formatted.replace(/^## (.*?)$/gm, '<h2>$1</h2>');
+    formatted = formatted.replace(/^# (.*?)$/gm, '<h1>$1</h1>');
+    
+    // Списки: - текст → <li>текст</li>
+    formatted = formatted.replace(/^- (.*?)$/gm, '<li>$1</li>');
+    
+    // Обернуть списки в <ul>
+    formatted = formatted.replace(/(<li>.*?<\/li>\n?)+/g, '<ul>$&</ul>');
+    
+    // Перенос строк
+    formatted = formatted.replace(/\n/g, '<br>');
+    
+    return formatted;
+}
+
+// ============================================
 // ГОЛОСОВЫЕ ПЕРЕМЕННЫЕ
 // ============================================
 let mediaRecorder = null;
@@ -85,9 +117,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Загружаем сохраненное имя
     const savedName = loadUserName();
     if (savedName) {
-        document.getElementById('userNameDisplay')?.setAttribute('textContent', savedName);
+        const userNameDisplay = document.getElementById('userNameDisplay');
+        if (userNameDisplay) userNameDisplay.textContent = savedName;
     } else if (currentUser?.first_name) {
-        document.getElementById('userNameDisplay')?.setAttribute('textContent', currentUser.first_name);
+        const userNameDisplay = document.getElementById('userNameDisplay');
+        if (userNameDisplay) userNameDisplay.textContent = currentUser.first_name;
         saveUserName(currentUserId, currentUser.first_name);
     }
     
@@ -191,7 +225,6 @@ const api = {
         formData.append('voice', audioBlob, 'voice.webm');
         
         try {
-            // 🔥 ИСПРАВЛЕНО: используем относительный URL
             const response = await fetch('/api/voice/process', {
                 method: 'POST',
                 body: formData
@@ -403,9 +436,8 @@ function showProfileScreen(interpretation) {
     
     if (!interpretationText) return;
     
-    let formattedText = interpretation
-        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-        .replace(/\n/g, '<br>');
+    // Используем функцию форматирования текста
+    let formattedText = formatText(interpretation);
     
     interpretationText.innerHTML = formattedText;
     
@@ -573,7 +605,6 @@ async function sendVoiceToServer(audioBlob) {
         formData.append('user_id', currentUserId);
         formData.append('voice', audioBlob, 'voice.webm');
         
-        // 🔥 ИСПРАВЛЕНО: используем относительный URL
         const response = await fetch('/api/voice/process', {
             method: 'POST',
             body: formData
@@ -805,9 +836,8 @@ function addMessageToChat(text, sender, buttons = null) {
     const messageDiv = document.createElement('div');
     messageDiv.className = `message ${sender}`;
     
-    const formattedText = text
-        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-        .replace(/\n/g, '<br>');
+    // Используем функцию форматирования текста
+    const formattedText = formatText(text);
     
     messageDiv.innerHTML = `
         <div class="message-text">${formattedText}</div>
@@ -1106,3 +1136,4 @@ window.showChat = showChatScreen;
 window.showModes = showModesScreen;
 window.sendChatMessage = sendChatMessage;
 window.startVoiceRecording = startVoiceRecording;
+window.formatText = formatText;

@@ -2744,3 +2744,392 @@ body {
         transform: scale(1.1);
     }
 }
+/* ============================================
+   КРИТИЧЕСКИЕ ИСПРАВЛЕНИЯ ДЛЯ МОБИЛЬНЫХ УСТРОЙСТВ
+   ============================================ */
+
+/* Фикс для всех экранов - предотвращаем выход за границы */
+* {
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+html, body {
+    overflow-x: hidden !important;
+    width: 100% !important;
+    position: relative !important;
+}
+
+/* Принудительное масштабирование для всех контейнеров */
+.phone-container,
+.app,
+.screen-container,
+.dashboard-container,
+.final-profile-container,
+.test-messages-container,
+.thought-result-container,
+.choose-mode-container,
+.choose-goal-container,
+.ask-question-container {
+    overflow-x: hidden !important;
+    max-width: 100% !important;
+}
+
+/* Исправление для текста - принудительный перенос */
+.message-text,
+.thought-text,
+.profile-text,
+.goal-name,
+.mode-desc,
+.test-question-text,
+.benefit-desc,
+.context-info {
+    word-break: break-word !important;
+    overflow-wrap: break-word !important;
+    white-space: normal !important;
+}
+
+/* Фикс для кнопок на маленьких экранах */
+@media (max-width: 480px) {
+    button, 
+    .btn,
+    .onboarding-btn,
+    .primary-btn,
+    .secondary-btn,
+    .message-button,
+    .test-required-btn,
+    .quick-action,
+    .module-card {
+        min-height: 44px !important;
+    }
+    
+    /* Уменьшаем отступы */
+    .dashboard-container,
+    .final-profile-container,
+    .test-messages-container {
+        padding: 12px !important;
+    }
+    
+    /* Уменьшаем размер шрифта на мобильных */
+    body {
+        font-size: 14px !important;
+    }
+    
+    h1 {
+        font-size: 24px !important;
+    }
+    
+    h2 {
+        font-size: 20px !important;
+    }
+    
+    h3 {
+        font-size: 18px !important;
+    }
+    
+    /* Фикс для гридов */
+    .modules-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 10px !important;
+    }
+    
+    .quick-actions-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 10px !important;
+    }
+    
+    /* Фикс для профильной шапки */
+    .dashboard-header {
+        padding: 16px !important;
+    }
+    
+    .user-avatar {
+        width: 56px !important;
+        height: 56px !important;
+    }
+    
+    .avatar-initial {
+        font-size: 24px !important;
+    }
+    
+    /* Фикс для статистики */
+    .user-stats {
+        gap: 12px !important;
+    }
+    
+    .stat-value {
+        font-size: 18px !important;
+    }
+    
+    .stat-label {
+        font-size: 10px !important;
+    }
+    
+    /* Фикс для экрана "Пройдите тест" */
+    .test-required-title {
+        font-size: 22px !important;
+    }
+    
+    .test-required-text {
+        font-size: 13px !important;
+        padding: 0 10px !important;
+    }
+    
+    .test-required-icon {
+        font-size: 48px !important;
+    }
+    
+    /* Фикс для результатов теста */
+    .profile-emoji {
+        font-size: 40px !important;
+    }
+    
+    .profile-title {
+        font-size: 18px !important;
+    }
+    
+    .profile-text {
+        padding: 16px !important;
+        font-size: 13px !important;
+    }
+    
+    /* Фикс для кнопок в результатах */
+    .profile-buttons .button-row {
+        flex-direction: column !important;
+        gap: 10px !important;
+    }
+    
+    .profile-buttons .button-row .onboarding-btn {
+        width: 100% !important;
+        margin: 0 !important;
+    }
+    
+    /* Фикс для мыслей психолога */
+    .thought-emoji {
+        font-size: 40px !important;
+    }
+    
+    .thought-title {
+        font-size: 18px !important;
+    }
+    
+    .thought-text {
+        padding: 16px !important;
+        font-size: 13px !important;
+    }
+    
+    .thought-buttons {
+        flex-direction: column !important;
+        gap: 10px !important;
+    }
+    
+    .thought-buttons .onboarding-btn {
+        width: 100% !important;
+    }
+    
+    /* Фикс для выбора режима */
+    .mode-emoji {
+        font-size: 28px !important;
+    }
+    
+    .mode-name {
+        font-size: 18px !important;
+    }
+    
+    .mode-desc {
+        font-size: 13px !important;
+    }
+    
+    .mode-card {
+        padding: 16px !important;
+    }
+    
+    /* Фикс для выбора целей */
+    .goal-item {
+        padding: 14px !important;
+    }
+    
+    .goal-name {
+        font-size: 15px !important;
+    }
+    
+    .goal-time {
+        font-size: 11px !important;
+    }
+    
+    .profile-badge, .mode-badge {
+        flex-direction: column !important;
+        gap: 6px !important;
+        text-align: center !important;
+    }
+    
+    /* Фикс для модулей */
+    .module-card {
+        padding: 12px 8px !important;
+    }
+    
+    .module-icon {
+        font-size: 28px !important;
+    }
+    
+    .module-name {
+        font-size: 12px !important;
+    }
+    
+    .module-desc {
+        font-size: 10px !important;
+    }
+    
+    /* Фикс для быстрых действий */
+    .quick-action {
+        padding: 10px !important;
+    }
+    
+    .action-icon {
+        font-size: 20px !important;
+    }
+    
+    .action-name {
+        font-size: 10px !important;
+    }
+    
+    /* Фикс для модальных окон */
+    .modal-content {
+        width: 95% !important;
+        max-width: 95% !important;
+        margin: 10px auto !important;
+        border-radius: 20px !important;
+    }
+    
+    .modal-body {
+        max-height: 60vh !important;
+        overflow-y: auto !important;
+        padding: 15px !important;
+    }
+    
+    /* Фикс для чата */
+    .message {
+        max-width: 90% !important;
+    }
+    
+    .message-text {
+        font-size: 14px !important;
+    }
+    
+    .message-bubble {
+        padding: 8px 12px !important;
+    }
+}
+
+/* Для очень маленьких экранов (до 380px) */
+@media (max-width: 380px) {
+    .modules-grid {
+        grid-template-columns: 1fr !important;
+    }
+    
+    .quick-actions-grid {
+        grid-template-columns: 1fr !important;
+    }
+    
+    .dashboard-header {
+        padding: 12px !important;
+    }
+    
+    .user-avatar {
+        width: 48px !important;
+        height: 48px !important;
+    }
+    
+    .avatar-initial {
+        font-size: 20px !important;
+    }
+    
+    .user-name {
+        font-size: 16px !important;
+    }
+    
+    .user-profile {
+        font-size: 10px !important;
+    }
+    
+    .stat-value {
+        font-size: 16px !important;
+    }
+    
+    .test-required-title {
+        font-size: 20px !important;
+    }
+}
+
+/* Фикс для альбомной ориентации на мобильных */
+@media (max-width: 900px) and (orientation: landscape) {
+    .dashboard-container {
+        padding: 8px !important;
+    }
+    
+    .modules-grid {
+        grid-template-columns: repeat(3, 1fr) !important;
+    }
+    
+    .quick-actions-grid {
+        grid-template-columns: repeat(4, 1fr) !important;
+    }
+    
+    .user-avatar {
+        width: 48px !important;
+        height: 48px !important;
+    }
+    
+    .avatar-initial {
+        font-size: 20px !important;
+    }
+    
+    .stat-value {
+        font-size: 16px !important;
+    }
+}
+
+/* Запрещаем масштабирование текста на мобильных (опционально) */
+@media (max-width: 768px) {
+    input, textarea, select, button {
+        font-size: 16px !important;
+    }
+}
+
+/* Улучшаем скроллинг на мобильных */
+.screen-container,
+.dashboard-container,
+.final-profile-container,
+.test-messages-container,
+.thought-result-container,
+.choose-mode-container,
+.choose-goal-container,
+.ask-question-container {
+    -webkit-overflow-scrolling: touch !important;
+    overflow-y: auto !important;
+}
+
+/* Фикс для плавных переходов */
+* {
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Убираем горизонтальный скролл на всех экранах */
+body {
+    overflow-x: hidden !important;
+    width: 100% !important;
+}
+
+/* Принудительное центрирование контента */
+.centered-screen,
+.form-screen,
+.choice-screen {
+    padding: 20px 15px !important;
+}
+
+/* Фикс для длинных слов */
+.profile-code,
+.profile-badge,
+.mode-badge {
+    word-break: break-all !important;
+}

@@ -1,6 +1,6 @@
 // ============================================
 // АНИМАЦИИ ПОЯВЛЕНИЯ
-// Версия 1.2 - Исправлена инициализация
+// Версия 1.3 - Исправлена ошибка setupViewTransitions
 // ============================================
 
 class AnimationManager {
@@ -44,7 +44,14 @@ class AnimationManager {
         
         try {
             this.setupIntersectionObserver();
-            this.setupViewTransitions();
+            
+            // ✅ ПРОВЕРКА: вызываем setupViewTransitions только если метод существует
+            if (typeof this.setupViewTransitions === 'function') {
+                this.setupViewTransitions();
+            } else {
+                console.log('ℹ️ View Transitions не настроены (метод setupViewTransisions отсутствует)');
+            }
+            
             this.injectStyles();
             console.log('✅ Менеджер анимаций готов');
         } catch (error) {
@@ -827,4 +834,4 @@ class StaggerAnimation {
 window.AnimationManager = AnimationManager;
 window.StaggerAnimation = StaggerAnimation;
 
-console.log('✅ Модуль анимаций загружен (версия 1.2)');
+console.log('✅ Модуль анимаций загружен (версия 1.3)');

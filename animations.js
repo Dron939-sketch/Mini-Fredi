@@ -1,6 +1,6 @@
 // ============================================
 // АНИМАЦИИ ПОЯВЛЕНИЯ
-// Версия 1.1 - Добавлены view transitions
+// Версия 1.2 - Исправлена инициализация
 // ============================================
 
 class AnimationManager {
@@ -17,8 +17,14 @@ class AnimationManager {
         this.animatedElements = new Map();
         this.animationsInProgress = new Set();
         this.isReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        this.isInitialized = false;
         
-        this.init();
+        // Ждем загрузки DOM
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => this.init());
+        } else {
+            this.init();
+        }
     }
     
     // ============================================
@@ -26,6 +32,9 @@ class AnimationManager {
     // ============================================
     
     init() {
+        if (this.isInitialized) return;
+        this.isInitialized = true;
+        
         console.log('✨ Инициализация менеджера анимаций...');
         
         if (this.isReducedMotion) {
@@ -33,11 +42,14 @@ class AnimationManager {
             return;
         }
         
-        this.setupIntersectionObserver();
-        this.setupViewTransitions();  // ✅ теперь метод существует
-        this.injectStyles();
-        
-        console.log('✅ Менеджер анимаций готов');
+        try {
+            this.setupIntersectionObserver();
+            this.setupViewTransitions();
+            this.injectStyles();
+            console.log('✅ Менеджер анимаций готов');
+        } catch (error) {
+            console.error('❌ Ошибка инициализации анимаций:', error);
+        }
     }
     
     // ============================================
@@ -45,24 +57,25 @@ class AnimationManager {
     // ============================================
     
     setupViewTransitions() {
-        // Проверяем поддержку View Transitions API
-        if (!document.startViewTransition) {
+        // Проверяем, что метод существует и браузер поддерживает View Transitions
+        if (typeof document.startViewTransition !== 'function') {
             console.log('⚠️ View Transitions API не поддерживается в этом браузере');
             return;
         }
         
         // Добавляем обработчики для элементов с атрибутом data-transition
-        const transitionElements = document.querySelectorAll('[data-transition]');
-        transitionElements.forEach(el => {
-            el.addEventListener('click', (e) => {
+        // Используем делегирование событий, чтобы обрабатывать динамически добавленные элементы
+        document.body.addEventListener('click', (e) => {
+            const transitionElement = e.target.closest('[data-transition]');
+            if (transitionElement) {
                 e.preventDefault();
-                const target = el.dataset.transition;
+                const target = transitionElement.dataset.transition;
                 if (target) {
                     document.startViewTransition(() => {
                         window.location.hash = target;
                     });
                 }
-            });
+            }
         });
         
         // Слушаем изменения hash для плавных переходов
@@ -82,45 +95,69 @@ class AnimationManager {
     handleHashChange() {
         // Обработка смены хэша
         const hash = window.location.hash.slice(1);
+        
+        // Проверяем существование нужных функций
         if (hash === 'profile') {
-            this.showProfileScreen();
+            if (window.dashboard && typeof window.dashboard.renderProfileScreen === 'function') {
+                window.dashboard.renderProfileScreen();
+            } else if (window.dashboard && typeof window.dashboard.renderProfile === 'function') {
+                window.dashboard.renderProfile();
+            }
         } else if (hash === 'thoughts') {
-            this.showThoughtsScreen();
+            if (window.dashboard && typeof window.dashboard.renderPsychologistThoughtScreen === 'function') {
+                window.dashboard.renderPsychologistThoughtScreen();
+            } else if (window.dashboard && typeof window.dashboard.renderThoughts === 'function') {
+                window.dashboard.renderThoughts();
+            }
         } else if (hash === 'goals') {
-            this.showGoalsScreen();
+            if (window.dashboard && typeof window.dashboard.renderGoalsScreen === 'function') {
+                window.dashboard.renderGoalsScreen();
+            } else if (window.dashboard && typeof window.dashboard.renderGoals === 'function') {
+                window.dashboard.renderGoals();
+            }
         } else if (hash === 'test') {
-            this.showTestScreen();
-        } else {
-            this.showDashboardScreen();
+            if (window.Test && typeof window.Test.start === 'function') {
+                window.Test.start();
+            }
+        } else if (hash === 'dashboard' || !hash) {
+            if (window.dashboard && typeof window.dashboard.renderDashboard === 'function') {
+                window.dashboard.renderDashboard();
+            }
         }
     }
     
     showDashboardScreen() {
-        if (window.dashboard && window.dashboard.renderDashboard) {
+        if (window.dashboard && typeof window.dashboard.renderDashboard === 'function') {
             window.dashboard.renderDashboard();
         }
     }
     
     showProfileScreen() {
-        if (window.dashboard && window.dashboard.renderProfileScreen) {
+        if (window.dashboard && typeof window.dashboard.renderProfileScreen === 'function') {
             window.dashboard.renderProfileScreen();
+        } else if (window.dashboard && typeof window.dashboard.renderProfile === 'function') {
+            window.dashboard.renderProfile();
         }
     }
     
     showThoughtsScreen() {
-        if (window.dashboard && window.dashboard.renderPsychologistThoughtScreen) {
+        if (window.dashboard && typeof window.dashboard.renderPsychologistThoughtScreen === 'function') {
             window.dashboard.renderPsychologistThoughtScreen();
+        } else if (window.dashboard && typeof window.dashboard.renderThoughts === 'function') {
+            window.dashboard.renderThoughts();
         }
     }
     
     showGoalsScreen() {
-        if (window.dashboard && window.dashboard.renderGoalsScreen) {
+        if (window.dashboard && typeof window.dashboard.renderGoalsScreen === 'function') {
             window.dashboard.renderGoalsScreen();
+        } else if (window.dashboard && typeof window.dashboard.renderGoals === 'function') {
+            window.dashboard.renderGoals();
         }
     }
     
     showTestScreen() {
-        if (window.Test && window.Test.start) {
+        if (window.Test && typeof window.Test.start === 'function') {
             window.Test.start();
         }
     }
@@ -130,7 +167,11 @@ class AnimationManager {
     // ============================================
     
     injectStyles() {
+        // Проверяем, не добавлены ли уже стили
+        if (document.getElementById('animation-styles')) return;
+        
         const style = document.createElement('style');
+        style.id = 'animation-styles';
         style.textContent = `
             /* Базовые анимации */
             @keyframes fadeIn {
@@ -297,7 +338,7 @@ class AnimationManager {
             .hover-scale { transition: transform 0.2s ease; }
             .hover-scale:hover { transform: scale(1.05); }
             .hover-glow { transition: box-shadow 0.2s ease, filter 0.2s ease; }
-            .hover-glow:hover { filter: drop-shadow(0 0 8px var(--max-blue)); }
+            .hover-glow:hover { filter: drop-shadow(0 0 8px #248bf2); }
             
             /* Анимация пульсации */
             @keyframes pulse {
@@ -373,9 +414,9 @@ class AnimationManager {
             .skeleton {
                 background: linear-gradient(
                     90deg,
-                    var(--glass-bg) 0%,
-                    rgba(255, 255, 255, 0.1) 50%,
-                    var(--glass-bg) 100%
+                    rgba(255, 255, 255, 0.1) 0%,
+                    rgba(255, 255, 255, 0.2) 50%,
+                    rgba(255, 255, 255, 0.1) 100%
                 );
                 background-size: 200% 100%;
                 animation: skeletonLoading 1.5s infinite;
@@ -404,18 +445,42 @@ class AnimationManager {
             }
         );
         
+        // Наблюдаем за существующими элементами
         this.observeElements('[data-animate]');
         this.observeElements('.animate-on-scroll');
+        
+        // Наблюдаем за новыми элементами через MutationObserver
+        this.setupMutationObserver();
     }
     
-    observeElements(selector) {
-        const elements = document.querySelectorAll(selector);
+    setupMutationObserver() {
+        const mutationObserver = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.type === 'childList') {
+                    mutation.addedNodes.forEach((node) => {
+                        if (node.nodeType === Node.ELEMENT_NODE) {
+                            this.observeElements('[data-animate]', node);
+                            this.observeElements('.animate-on-scroll', node);
+                        }
+                    });
+                }
+            });
+        });
+        
+        mutationObserver.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+    }
+    
+    observeElements(selector, context = document) {
+        const elements = context.querySelectorAll(selector);
         elements.forEach(el => {
             if (!this.animatedElements.has(el)) {
                 this.animatedElements.set(el, {
                     animation: el.dataset.animate || 'fade-in-up',
-                    delay: el.dataset.animateDelay || 0,
-                    duration: el.dataset.animateDuration || this.options.animationDuration,
+                    delay: parseFloat(el.dataset.animateDelay) || 0,
+                    duration: parseFloat(el.dataset.animateDuration) || this.options.animationDuration,
                     triggered: false
                 });
                 this.observer.observe(el);
@@ -441,16 +506,19 @@ class AnimationManager {
     
     animateElement(element, config) {
         const animationClass = this.getAnimationClass(config.animation);
-        const delay = parseFloat(config.delay);
-        const duration = parseFloat(config.duration);
+        const delay = config.delay || 0;
+        const duration = config.duration || this.options.animationDuration;
         
         element.style.opacity = '0';
         element.style.animation = 'none';
         
+        // Force reflow
         void element.offsetHeight;
         
         element.style.animation = `${animationClass} ${duration}s cubic-bezier(0.2, 0.9, 0.3, 1.1) forwards`;
-        element.style.animationDelay = `${delay}s`;
+        if (delay > 0) {
+            element.style.animationDelay = `${delay}s`;
+        }
         element.style.opacity = '1';
         
         this.animationsInProgress.add(element);
@@ -485,7 +553,7 @@ class AnimationManager {
     // МЕТОДЫ ДЛЯ РУЧНОЙ АНИМАЦИИ
     // ============================================
     
-    animateElementNow(element, animationType = 'fade-in-up', duration = 0.4, delay = 0) {
+    async animateElementNow(element, animationType = 'fade-in-up', duration = 0.4, delay = 0) {
         if (!element) return;
         
         const animationClass = this.getAnimationClass(animationType);
@@ -493,10 +561,13 @@ class AnimationManager {
         element.style.opacity = '0';
         element.style.animation = 'none';
         
+        // Force reflow
         void element.offsetHeight;
         
         element.style.animation = `${animationClass} ${duration}s cubic-bezier(0.2, 0.9, 0.3, 1.1) forwards`;
-        element.style.animationDelay = `${delay}s`;
+        if (delay > 0) {
+            element.style.animationDelay = `${delay}s`;
+        }
         element.style.opacity = '1';
         
         return new Promise(resolve => {
@@ -541,7 +612,9 @@ class AnimationManager {
         
         await new Promise(resolve => {
             element.addEventListener('animationend', () => {
-                element.remove();
+                if (element.parentNode) {
+                    element.remove();
+                }
                 resolve();
             }, { once: true });
         });
@@ -568,7 +641,9 @@ class AnimationManager {
             await this.removeWithAnimation(oldScreen, exitAnimation);
         }
         
-        newScreen.classList.add('animate-screen-transition');
+        if (newScreen) {
+            newScreen.classList.add('animate-screen-transition');
+        }
         return newScreen;
     }
     
@@ -576,7 +651,9 @@ class AnimationManager {
     // АНИМАЦИЯ ДЛЯ МОДАЛЬНЫХ ОКОН
     // ============================================
     
-    showModal(modalElement) {
+    async showModal(modalElement) {
+        if (!modalElement) return;
+        
         modalElement.style.display = 'flex';
         modalElement.classList.add('animate-modal-in');
         
@@ -587,7 +664,9 @@ class AnimationManager {
         });
     }
     
-    hideModal(modalElement) {
+    async hideModal(modalElement) {
+        if (!modalElement) return;
+        
         modalElement.style.animation = 'fade-out 0.2s ease forwards';
         
         return new Promise(resolve => {
@@ -657,15 +736,14 @@ class AnimationManager {
     // ============================================
     
     showSkeleton(container, skeletonTemplate) {
+        if (!container) return;
         container.innerHTML = skeletonTemplate;
-        container.querySelectorAll('.skeleton').forEach(el => {
-            el.classList.add('skeleton');
-        });
     }
     
     hideSkeleton(container, content) {
+        if (!container) return;
         container.innerHTML = content;
-        this.observeElements(container);
+        this.refresh();
     }
     
     // ============================================
@@ -694,6 +772,7 @@ class AnimationManager {
 class StaggerAnimation {
     constructor(containerSelector, itemSelector, options = {}) {
         this.container = document.querySelector(containerSelector);
+        this.itemSelector = itemSelector;
         this.items = this.container ? Array.from(this.container.querySelectorAll(itemSelector)) : [];
         this.options = {
             animation: 'fade-in-up',
@@ -735,7 +814,9 @@ class StaggerAnimation {
     }
     
     refresh() {
-        this.items = this.container ? Array.from(this.container.querySelectorAll(this.itemSelector)) : [];
+        if (this.container) {
+            this.items = Array.from(this.container.querySelectorAll(this.itemSelector));
+        }
     }
 }
 
@@ -746,4 +827,4 @@ class StaggerAnimation {
 window.AnimationManager = AnimationManager;
 window.StaggerAnimation = StaggerAnimation;
 
-console.log('✅ Модуль анимаций загружен');
+console.log('✅ Модуль анимаций загружен (версия 1.2)');

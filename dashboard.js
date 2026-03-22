@@ -1,6 +1,7 @@
 // ============================================
 // ЛИЧНЫЙ КАБИНЕТ - КОНСОРЦИУМ ФРЕДИ
 // Версия 2.5 - ИСПРАВЛЕНА РАБОТА МИКРОФОНА (Samsung A51 и другие Android)
+// Версия 2.6 - ДОБАВЛЕН АНИМИРОВАННЫЙ АВАТАР
 // ============================================
 
 class FrediDashboard {
@@ -299,38 +300,65 @@ class FrediDashboard {
     }
     
     // ============================================
-    // ИНИЦИАЛИЗАЦИЯ МОДУЛЕЙ УЛУЧШЕНИЙ
+    // ИНИЦИАЛИЗАЦИЯ АНИМИРОВАННОГО АВАТАРА
     // ============================================
     
     async initAnimatedAvatar() {
         if (!window.AnimatedAvatar) {
-            console.warn('AnimatedAvatar не загружен');
+            console.warn('AnimatedAvatar не загружен, использую обычный аватар');
+            this._showFallbackAvatar();
             return;
         }
         
         try {
+            // Загружаем данные профиля для аватара
             const profileResponse = await fetch(`/api/get-profile?user_id=${this.userId}`);
             const profileData = await profileResponse.json();
             
+            // Создаём экземпляр анимированного аватара
             this.animatedAvatar = new AnimatedAvatar(this.userId, this.userName, profileData);
             const avatarCanvas = await this.animatedAvatar.init();
             
+            // Настраиваем размер
+            this.animatedAvatar.setSize(80, 80);
+            
+            // Добавляем в контейнер
             const avatarContainer = document.getElementById('avatarContainer');
             if (avatarContainer) {
                 avatarContainer.innerHTML = '';
                 avatarContainer.appendChild(avatarCanvas);
             }
             
+            // Обработчик клика на аватар
             this.animatedAvatar.onAvatarClick = () => {
+                // Случайная смена настроения
                 const moods = ['happy', 'thoughtful', 'energetic'];
                 const randomMood = moods[Math.floor(Math.random() * moods.length)];
                 this.animatedAvatar.setMood(randomMood);
-                setTimeout(() => this.animatedAvatar.setMood('neutral'), 3000);
+                setTimeout(() => this.animatedAvatar.setMood('neutral'), 2000);
+                
+                // Показываем приветственное сообщение
+                this.showFloatingMessage('Привет! Как настроение?', 'info');
             };
+            
+            console.log('✅ Анимированный аватар инициализирован');
+            
         } catch (error) {
-            console.warn('Ошибка инициализации аватара:', error);
+            console.error('Ошибка инициализации аватара:', error);
+            this._showFallbackAvatar();
         }
     }
+    
+    _showFallbackAvatar() {
+        const avatarContainer = document.getElementById('avatarContainer');
+        if (avatarContainer) {
+            avatarContainer.innerHTML = this.getUserAvatar();
+        }
+    }
+    
+    // ============================================
+    // ИНИЦИАЛИЗАЦИЯ МОДУЛЕЙ УЛУЧШЕНИЙ
+    // ============================================
     
     async initChallenges() {
         if (!window.ChallengeManager) {
@@ -1153,6 +1181,12 @@ class FrediDashboard {
     // ============================================
     
     handleQuickAction(actionType) {
+        // Анимация аватара при нажатии
+        if (this.animatedAvatar) {
+            this.animatedAvatar.setMood('happy');
+            setTimeout(() => this.animatedAvatar.setMood('neutral'), 1500);
+        }
+        
         switch(actionType) {
             case 'mode':
                 this.renderModeSelectionScreen();
@@ -1170,6 +1204,12 @@ class FrediDashboard {
     }
     
     handleModuleClick(moduleId) {
+        // Анимация аватара при клике на модуль
+        if (this.animatedAvatar) {
+            this.animatedAvatar.setMood('thoughtful');
+            setTimeout(() => this.animatedAvatar.setMood('neutral'), 1500);
+        }
+        
         const messages = {
             strategy: '🎯 Стратегия: Давайте разберем ваши цели и построим план действий. Что для вас сейчас самое важное?',
             reputation: '🏆 Репутация: Ваша репутация формируется из того, как вы взаимодействуете с миром. Расскажите, что вас беспокоит?',

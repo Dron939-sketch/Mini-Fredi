@@ -1,6 +1,6 @@
 // ============================================
 // ЛИЧНЫЙ КАБИНЕТ - КОНСОРЦИУМ ФРЕДИ
-// Версия 1.1 - с загрузкой имени из БД
+// Версия 2.0 - полная интеграция с улучшениями
 // ============================================
 
 class FrediDashboard {
@@ -15,17 +15,31 @@ class FrediDashboard {
         this.daysActive = 3;
         this.sessionsCount = 12;
         
+        // Модули улучшений
+        this.challengeManager = null;
+        this.notificationManager = null;
+        this.psychometric = null;
+        this.animatedAvatar = null;
+        
+        // Состояние голосовой записи
+        this.isRecording = false;
+        this.mediaRecorder = null;
+        this.audioChunks = [];
+        this.recordingTimer = null;
+        this.recordingStartTime = null;
+        
+        // Модули консорциума
         this.modules = {
-            strategy: { name: '🎯 Стратегия', icon: '🎯', color: '#4CAF50', requiresTest: true },
-            reputation: { name: '🏆 Репутация', icon: '🏆', color: '#FF9800', requiresTest: true },
-            goals: { name: '📊 Цели', icon: '📊', color: '#2196F3', requiresTest: true },
-            entertainment: { name: '🎮 Развлечения', icon: '🎮', color: '#9C27B0', requiresTest: false },
-            psychology: { name: '🧠 Психология', icon: '🧠', color: '#E91E63', requiresTest: true },
-            habits: { name: '🔄 Привычки', icon: '🔄', color: '#00BCD4', requiresTest: true },
-            communication: { name: '💬 Общение', icon: '💬', color: '#3F51B5', requiresTest: false },
-            finance: { name: '💰 Финансы', icon: '💰', color: '#FFC107', requiresTest: true },
-            health: { name: '❤️ Здоровье', icon: '❤️', color: '#F44336', requiresTest: false },
-            creativity: { name: '🎨 Творчество', icon: '🎨', color: '#FF6B6B', requiresTest: false }
+            strategy: { name: '🎯 Стратегия', icon: '🎯', color: '#4CAF50', requiresTest: true, weakVector: 'sb', description: 'Построение планов и достижение целей' },
+            reputation: { name: '🏆 Репутация', icon: '🏆', color: '#FF9800', requiresTest: true, weakVector: 'chv', description: 'Управление впечатлением и авторитетом' },
+            goals: { name: '📊 Цели', icon: '📊', color: '#2196F3', requiresTest: true, weakVector: null, description: 'Ваши цели и задачи' },
+            entertainment: { name: '🎮 Развлечения', icon: '🎮', color: '#9C27B0', requiresTest: false, weakVector: null, description: 'Идеи для отдыха' },
+            psychology: { name: '🧠 Психология', icon: '🧠', color: '#E91E63', requiresTest: true, weakVector: 'ub', description: 'Глубинные паттерны' },
+            habits: { name: '🔄 Привычки', icon: '🔄', color: '#00BCD4', requiresTest: true, weakVector: null, description: 'Полезные привычки' },
+            communication: { name: '💬 Общение', icon: '💬', color: '#3F51B5', requiresTest: false, weakVector: 'chv', description: 'Советы по общению' },
+            finance: { name: '💰 Финансы', icon: '💰', color: '#FFC107', requiresTest: true, weakVector: 'tf', description: 'Управление деньгами' },
+            health: { name: '❤️ Здоровье', icon: '❤️', color: '#F44336', requiresTest: false, weakVector: null, description: 'Забота о себе' },
+            creativity: { name: '🎨 Творчество', icon: '🎨', color: '#FF6B6B', requiresTest: false, weakVector: null, description: 'Вдохновение и идеи' }
         };
         
         this.init();
@@ -42,7 +56,19 @@ class FrediDashboard {
         await this.loadUserData();
         this.renderDashboard();
         this.initVoiceInput();
+        
+        // Инициализация дополнительных модулей после загрузки данных
+        if (this.isTestCompleted) {
+            await this.initAnimatedAvatar();
+            await this.initChallenges();
+            await this.initPsychometricDoubles();
+            await this.initNotifications();
+        }
     }
+    
+    // ============================================
+    // ЗАГРУЗКА ДАННЫХ
+    // ============================================
     
     async loadUserData() {
         try {
@@ -78,7 +104,7 @@ class FrediDashboard {
                 this.userData = profile;
             }
             
-            // 5. Загружаем статистику (дней активности, сессий)
+            // 5. Загружаем статистику
             try {
                 const statsResponse = await fetch(`/api/user-full-status?user_id=${this.userId}`);
                 const stats = await statsResponse.json();
@@ -100,6 +126,108 @@ class FrediDashboard {
             this.isTestCompleted = false;
         }
     }
+    
+    // ============================================
+    // ИНИЦИАЛИЗАЦИЯ МОДУЛЕЙ УЛУЧШЕНИЙ
+    // ============================================
+    
+    async initAnimatedAvatar() {
+        if (!window.AnimatedAvatar) {
+            console.warn('AnimatedAvatar не загружен');
+            return;
+        }
+        
+        try {
+            const profileResponse = await fetch(`/api/get-profile?user_id=${this.userId}`);
+            const profileData = await profileResponse.json();
+            
+            this.animatedAvatar = new AnimatedAvatar(this.userId, this.userName, profileData);
+            const avatarCanvas = await this.animatedAvatar.init();
+            
+            const avatarContainer = document.getElementById('avatarContainer');
+            if (avatarContainer) {
+                avatarContainer.innerHTML = '';
+                avatarContainer.appendChild(avatarCanvas);
+            }
+            
+            this.animatedAvatar.onAvatarClick = () => {
+                const moods = ['happy', 'thoughtful', 'energetic'];
+                const randomMood = moods[Math.floor(Math.random() * moods.length)];
+                this.animatedAvatar.setMood(randomMood);
+                setTimeout(() => this.animatedAvatar.setMood('neutral'), 3000);
+            };
+        } catch (error) {
+            console.warn('Ошибка инициализации аватара:', error);
+        }
+    }
+    
+    async initChallenges() {
+        if (!window.ChallengeManager) {
+            console.warn('ChallengeManager не загружен');
+            return;
+        }
+        
+        try {
+            this.challengeManager = new ChallengeManager(this.userId, this.userData);
+            await this.challengeManager.init();
+            
+            this.challengeManager.addListener((event, data) => {
+                if (event === 'level_up') {
+                    this.showFloatingMessage(`🎉 Уровень ${data.level} достигнут!`, 'success');
+                } else if (event === 'challenge_completed') {
+                    this.showFloatingMessage(`🏆 Выполнен челлендж: ${data.name}`, 'success');
+                }
+            });
+            
+            this.renderChallengesWidget();
+        } catch (error) {
+            console.error('Ошибка инициализации челленджей:', error);
+        }
+    }
+    
+    async initPsychometricDoubles() {
+        if (!window.PsychometricDoubles) {
+            console.warn('PsychometricDoubles не загружен');
+            return;
+        }
+        
+        try {
+            const profileResponse = await fetch(`/api/get-profile?user_id=${this.userId}`);
+            const profileData = await profileResponse.json();
+            
+            const userProfile = {
+                sb: profileData.profile_data?.sb_level || 4,
+                tf: profileData.profile_data?.tf_level || 4,
+                ub: profileData.profile_data?.ub_level || 4,
+                chv: profileData.profile_data?.chv_level || 4
+            };
+            
+            this.psychometric = new PsychometricDoubles(this.userId, userProfile);
+            await this.psychometric.init();
+            
+            this.renderDoublesSection();
+        } catch (error) {
+            console.error('Ошибка инициализации двойников:', error);
+        }
+    }
+    
+    async initNotifications() {
+        if (!window.NotificationManager) {
+            console.warn('NotificationManager не загружен');
+            return;
+        }
+        
+        try {
+            this.notificationManager = new NotificationManager(this.userId, this.userName);
+            await this.notificationManager.init();
+        } catch (error) {
+            console.error('Ошибка инициализации уведомлений:', error);
+        }
+    }
+    
+    // ============================================
+    // ОТРИСОВКА ДАШБОРДА
+    // ============================================
     
     renderDashboard() {
         const container = document.getElementById('screenContainer');
@@ -128,28 +256,19 @@ class FrediDashboard {
                     • Создать персонализированный консорциум<br><br>
                     Готовы познакомиться?
                 </div>
-                <button class="test-required-btn" id="startTestBtn">
-                    🚀 ПРОЙТИ ТЕСТ
-                </button>
-                <button class="test-required-btn secondary" id="skipTestBtn">
-                    ⏭ ПОЗЖЕ
-                </button>
+                <button class="test-required-btn" id="startTestBtn">🚀 ПРОЙТИ ТЕСТ</button>
+                <button class="test-required-btn secondary" id="skipTestBtn">⏭ ПОЗЖЕ</button>
             </div>
         `;
         
         const startBtn = document.getElementById('startTestBtn');
-        if (startBtn) {
-            startBtn.onclick = () => this.startTest();
-        }
+        if (startBtn) startBtn.onclick = () => this.startTest();
         
         const skipBtn = document.getElementById('skipTestBtn');
-        if (skipBtn) {
-            skipBtn.onclick = () => this.showSkipMessage();
-        }
+        if (skipBtn) skipBtn.onclick = () => this.showSkipMessage();
     }
     
     renderMainDashboard(container) {
-        // Получаем персонализированные модули на основе профиля
         const personalizedModules = this.getPersonalizedModules();
         
         container.innerHTML = `
@@ -157,7 +276,7 @@ class FrediDashboard {
                 <!-- Верхняя панель с профилем -->
                 <div class="dashboard-header">
                     <div class="user-welcome">
-                        <div class="user-avatar">${this.getUserAvatar()}</div>
+                        <div class="user-avatar" id="avatarContainer">${this.getUserAvatar()}</div>
                         <div class="user-info">
                             <div class="user-name">${this.userName}</div>
                             <div class="user-profile">${this.profileCode || 'СБ-4_ТФ-4_УБ-4_ЧВ-4'}</div>
@@ -235,8 +354,79 @@ class FrediDashboard {
         this.attachDashboardEvents();
     }
     
+    // ============================================
+    // ВИДЖЕТЫ
+    // ============================================
+    
+    renderChallengesWidget() {
+        if (!this.challengeManager) return;
+        
+        const widgetHtml = this.challengeManager.renderWidget();
+        const container = document.querySelector('.dashboard-container');
+        if (!container) return;
+        
+        const existingWidget = document.querySelector('.challenges-widget');
+        if (existingWidget) existingWidget.remove();
+        
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = widgetHtml;
+        const widget = tempDiv.firstElementChild;
+        
+        const modulesGrid = document.querySelector('.modules-grid');
+        if (modulesGrid) {
+            modulesGrid.parentNode.insertBefore(widget, modulesGrid.nextSibling);
+        } else {
+            container.appendChild(widget);
+        }
+        
+        this.attachChallengeEvents();
+    }
+    
+    renderDoublesSection() {
+        if (!this.psychometric || this.psychometric.doubles.length === 0) return;
+        
+        const doublesSection = document.createElement('div');
+        doublesSection.className = 'doubles-section';
+        doublesSection.innerHTML = `
+            <div class="doubles-header">
+                <div class="doubles-title">
+                    <span class="doubles-title-emoji">👥</span>
+                    Психометрические двойники
+                </div>
+                <button class="doubles-refresh" id="refreshDoublesBtn">🔄</button>
+            </div>
+            <div class="doubles-list" id="doublesList">
+                ${this.psychometric.doubles.map(d => {
+                    const compatibility = this.psychometric.calculateCompatibility(
+                        this.psychometric.userProfile, 
+                        d.profile
+                    );
+                    return this.psychometric.renderDoubleCard(d, compatibility);
+                }).join('')}
+            </div>
+        `;
+        
+        const container = document.querySelector('.dashboard-container');
+        if (container) {
+            const existing = document.querySelector('.doubles-section');
+            if (existing) existing.remove();
+            
+            const challengesWidget = document.querySelector('.challenges-widget');
+            if (challengesWidget) {
+                challengesWidget.parentNode.insertBefore(doublesSection, challengesWidget.nextSibling);
+            } else {
+                container.appendChild(doublesSection);
+            }
+        }
+        
+        this.attachDoublesEvents();
+    }
+    
+    // ============================================
+    // ПЕРСОНАЛИЗАЦИЯ МОДУЛЕЙ
+    // ============================================
+    
     getPersonalizedModules() {
-        // Если тест не пройден - показываем только базовые модули
         if (!this.isTestCompleted) {
             return [
                 { id: 'test', name: '🧪 Пройти тест', icon: '🧪', color: '#FF9800', description: 'Узнайте свой профиль' },
@@ -245,35 +435,34 @@ class FrediDashboard {
             ];
         }
         
-        // На основе профиля определяем приоритетные модули
         const profileScores = this.extractProfileScores();
         const modules = [];
         
         // Добавляем модули в зависимости от слабых векторов
         if (profileScores.sb < 3) {
-            modules.push({ id: 'strategy', name: '🎯 Стратегия', icon: '🎯', color: '#4CAF50', description: 'Укрепляем границы' });
+            modules.push({ ...this.modules.strategy, description: 'Укрепляем границы' });
         }
         if (profileScores.tf < 3) {
-            modules.push({ id: 'finance', name: '💰 Финансы', icon: '💰', color: '#FFC107', description: 'Развиваем финансовое мышление' });
+            modules.push({ ...this.modules.finance, description: 'Развиваем финансовое мышление' });
         }
         if (profileScores.ub < 3) {
-            modules.push({ id: 'psychology', name: '🧠 Психология', icon: '🧠', color: '#E91E63', description: 'Глубинные паттерны' });
+            modules.push({ ...this.modules.psychology, description: 'Глубинные паттерны' });
         }
         if (profileScores.chv < 3) {
-            modules.push({ id: 'communication', name: '💬 Общение', icon: '💬', color: '#3F51B5', description: 'Улучшаем отношения' });
+            modules.push({ ...this.modules.communication, description: 'Улучшаем отношения' });
         }
         
         // Добавляем общие модули
         const commonModules = [
-            { id: 'goals', name: '📊 Цели', icon: '📊', color: '#2196F3', description: 'Ваши цели и задачи' },
-            { id: 'habits', name: '🔄 Привычки', icon: '🔄', color: '#00BCD4', description: 'Полезные привычки' },
-            { id: 'entertainment', name: '🎮 Развлечения', icon: '🎮', color: '#9C27B0', description: 'Идеи для отдыха' },
-            { id: 'health', name: '❤️ Здоровье', icon: '❤️', color: '#F44336', description: 'Забота о себе' }
+            { ...this.modules.goals, description: 'Ваши цели и задачи' },
+            { ...this.modules.habits, description: 'Полезные привычки' },
+            { ...this.modules.entertainment, description: 'Идеи для отдыха' },
+            { ...this.modules.health, description: 'Забота о себе' }
         ];
         
         modules.push(...commonModules);
         
-        // Ограничиваем количество и удаляем дубликаты
+        // Удаляем дубликаты и ограничиваем количество
         const unique = modules.filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
         return unique.slice(0, 9);
     }
@@ -311,6 +500,10 @@ class FrediDashboard {
         return this.sessionsCount;
     }
     
+    // ============================================
+    // ОБРАБОТЧИКИ СОБЫТИЙ
+    // ============================================
+    
     attachDashboardEvents() {
         // Обработчики для модулей
         document.querySelectorAll('.module-card').forEach(card => {
@@ -334,6 +527,52 @@ class FrediDashboard {
             this.setupVoiceButton(voiceBtn);
         }
     }
+    
+    attachChallengeEvents() {
+        document.querySelectorAll('.challenge-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                const challengeId = item.dataset.challengeId;
+                const challenge = this.challengeManager?.dailyChallenges.find(c => c.id === challengeId) ||
+                                 this.challengeManager?.weeklyChallenges.find(c => c.id === challengeId) ||
+                                 this.challengeManager?.specialChallenges.find(c => c.id === challengeId);
+                if (challenge && !challenge.completed) {
+                    this.showFloatingMessage(challenge.description, 'info');
+                }
+            });
+        });
+    }
+    
+    attachDoublesEvents() {
+        const refreshBtn = document.getElementById('refreshDoublesBtn');
+        if (refreshBtn) {
+            refreshBtn.onclick = async () => {
+                const listContainer = document.getElementById('doublesList');
+                if (listContainer) listContainer.innerHTML = '<div class="doubles-empty">🔍 Обновление списка...</div>';
+                await this.psychometric.findDoubles();
+                this.renderDoublesSection();
+            };
+        }
+        
+        document.querySelectorAll('.double-message-btn').forEach(btn => {
+            btn.onclick = (e) => {
+                const doubleId = btn.dataset.doubleId;
+                const double = this.psychometric.doubles.find(d => d.id == doubleId);
+                if (double) this.showChatModal(double);
+            };
+        });
+        
+        document.querySelectorAll('.double-details-btn').forEach(btn => {
+            btn.onclick = (e) => {
+                const doubleId = btn.dataset.doubleId;
+                const double = this.psychometric.doubles.find(d => d.id == doubleId);
+                if (double) this.showDoubleProfile(double);
+            };
+        });
+    }
+    
+    // ============================================
+    // ГОЛОСОВОЙ ВВОД
+    // ============================================
     
     setupVoiceButton(button) {
         let isRecording = false;
@@ -360,7 +599,6 @@ class FrediDashboard {
                     const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
                     await this.sendVoiceToServer(audioBlob);
                     
-                    // Сброс UI
                     if (timerInterval) clearInterval(timerInterval);
                     if (voiceStatus) voiceStatus.style.display = 'none';
                     button.classList.remove('recording');
@@ -371,12 +609,10 @@ class FrediDashboard {
                 isRecording = true;
                 recordingStartTime = Date.now();
                 
-                // Обновляем UI
                 button.classList.add('recording');
                 button.innerHTML = '<span class="voice-icon">⏹️</span><span class="voice-text">Отпустите для отправки</span>';
                 if (voiceStatus) voiceStatus.style.display = 'flex';
                 
-                // Таймер
                 timerInterval = setInterval(() => {
                     if (isRecording && recordingStartTime) {
                         const elapsed = Math.floor((Date.now() - recordingStartTime) / 1000);
@@ -385,11 +621,7 @@ class FrediDashboard {
                     }
                 }, 1000);
                 
-                // Авто-остановка через 30 секунд
-                setTimeout(() => {
-                    if (isRecording) stopRecording();
-                }, 30000);
-                
+                setTimeout(() => { if (isRecording) stopRecording(); }, 30000);
             } catch (error) {
                 console.error('Microphone error:', error);
                 this.showFloatingMessage('Не удалось получить доступ к микрофону', 'error');
@@ -404,20 +636,12 @@ class FrediDashboard {
             }
         };
         
-        // Нажал - начать запись
         button.addEventListener('mousedown', startRecording);
         button.addEventListener('mouseup', stopRecording);
         button.addEventListener('mouseleave', stopRecording);
         
-        // Для touch устройств
-        button.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            startRecording();
-        });
-        button.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            stopRecording();
-        });
+        button.addEventListener('touchstart', (e) => { e.preventDefault(); startRecording(); });
+        button.addEventListener('touchend', (e) => { e.preventDefault(); stopRecording(); });
     }
     
     async sendVoiceToServer(audioBlob) {
@@ -461,9 +685,11 @@ class FrediDashboard {
         }
     }
     
+    // ============================================
+    // ОБРАБОТЧИКИ МОДУЛЕЙ
+    // ============================================
+    
     handleModuleClick(moduleId) {
-        console.log('Модуль:', moduleId);
-        
         const messages = {
             strategy: '🎯 Стратегия: Давайте разберем ваши цели и построим план действий. Что для вас сейчас самое важное?',
             reputation: '🏆 Репутация: Ваша репутация формируется из того, как вы взаимодействуете с миром. Расскажите, что вас беспокоит?',
@@ -479,9 +705,12 @@ class FrediDashboard {
         
         const message = messages[moduleId] || `Расскажите подробнее о теме "${moduleId}"`;
         this.showFloatingMessage(message, 'info');
-        
-        // Отправляем запрос в бот
         this.sendQuestionToBot(message);
+        
+        // Отмечаем активность для челленджей
+        if (this.challengeManager) {
+            this.challengeManager.onQuestionAsked();
+        }
     }
     
     handleQuickAction(actionType) {
@@ -501,6 +730,10 @@ class FrediDashboard {
         }
     }
     
+    // ============================================
+    // ВСПЛЫВАЮЩИЕ СООБЩЕНИЯ
+    // ============================================
+    
     showFloatingMessage(text, type = 'info') {
         const floatingMsg = document.getElementById('floatingMessage');
         const textEl = document.getElementById('floatingMessageText');
@@ -511,19 +744,19 @@ class FrediDashboard {
         floatingMsg.className = `floating-message ${type}`;
         floatingMsg.style.display = 'block';
         
-        // Авто-скрытие через 5 секунд
         setTimeout(() => {
             floatingMsg.style.display = 'none';
         }, 5000);
         
-        // Кнопка закрытия
         const closeBtn = document.getElementById('floatingMessageClose');
         if (closeBtn) {
-            closeBtn.onclick = () => {
-                floatingMsg.style.display = 'none';
-            };
+            closeBtn.onclick = () => floatingMsg.style.display = 'none';
         }
     }
+    
+    // ============================================
+    // API ВЫЗОВЫ
+    // ============================================
     
     async sendQuestionToBot(question) {
         try {
@@ -551,7 +784,6 @@ class FrediDashboard {
     }
     
     showModeSelection() {
-        // Открываем выбор режима
         if (window.api && window.api.showModeSelection) {
             window.api.showModeSelection();
         } else {
@@ -611,13 +843,75 @@ class FrediDashboard {
         }
     }
     
+    // ============================================
+    // ЧАТ С ДВОЙНИКОМ
+    // ============================================
+    
+    showChatModal(double) {
+        const modalHtml = this.psychometric.renderChatModal(double);
+        const modalContainer = document.createElement('div');
+        modalContainer.innerHTML = modalHtml;
+        document.body.appendChild(modalContainer);
+        
+        const closeBtn = document.getElementById('closeChatModal');
+        if (closeBtn) closeBtn.onclick = () => modalContainer.remove();
+        
+        const sendBtn = document.getElementById('sendChatMessage');
+        const input = document.getElementById('chatMessageInput');
+        
+        const sendMessage = async () => {
+            const message = input.value.trim();
+            if (!message) return;
+            
+            const messagesList = document.getElementById('messagesList');
+            if (messagesList) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'message user-message';
+                messageDiv.innerHTML = `<div class="message-bubble">${message}</div><div class="message-time">только что</div>`;
+                messagesList.appendChild(messageDiv);
+                messagesList.scrollTop = messagesList.scrollHeight;
+            }
+            
+            input.value = '';
+            const success = await this.psychometric.sendMessage(double.id, message);
+            
+            if (success) {
+                setTimeout(() => this.addBotReply(double, messagesList), 1000);
+            }
+        };
+        
+        if (sendBtn) sendBtn.onclick = sendMessage;
+        if (input) input.onkeypress = (e) => { if (e.key === 'Enter') sendMessage(); };
+        
+        modalContainer.querySelector('.modal-overlay').onclick = (e) => {
+            if (e.target === modalContainer.querySelector('.modal-overlay')) modalContainer.remove();
+        };
+    }
+    
+    addBotReply(double, messagesList) {
+        const replies = [
+            `Привет! Рад познакомиться! У нас ${double.compatibility.score}% совместимости!`,
+            `Ого, у нас очень похожий профиль! Как у тебя дела?`,
+            `Здорово, что нас свела система! Расскажи, как у тебя дела?`,
+            `Привет-привет! Смотрю на твой профиль — мы очень похожи. Как проходит твой день?`
+        ];
+        
+        const randomReply = replies[Math.floor(Math.random() * replies.length)];
+        const replyDiv = document.createElement('div');
+        replyDiv.className = 'message bot-message';
+        replyDiv.innerHTML = `<div class="message-bubble">${randomReply}</div><div class="message-time">только что</div>`;
+        messagesList.appendChild(replyDiv);
+        messagesList.scrollTop = messagesList.scrollHeight;
+    }
+    
+    showDoubleProfile(double) {
+        this.showFloatingMessage(`👤 ${double.first_name} ${double.last_name || ''}\n📊 Профиль: ${double.profile_code}`, 'info');
+    }
+    
     initVoiceInput() {
-        // Глобальная функция для голосового ввода из любого места
         window.startVoiceRecording = () => {
             const voiceBtn = document.getElementById('dashboardVoiceBtn');
-            if (voiceBtn) {
-                voiceBtn.dispatchEvent(new Event('mousedown'));
-            }
+            if (voiceBtn) voiceBtn.dispatchEvent(new Event('mousedown'));
         };
     }
 }

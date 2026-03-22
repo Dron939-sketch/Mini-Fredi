@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Фреди · виртуальный психолог</title>
     
     <!-- PWA Manifest -->
@@ -13,27 +13,275 @@
     <meta name="apple-mobile-web-app-title" content="Фреди">
     <link rel="apple-touch-icon" href="/icon-192.png">
     
-    <!-- 🔥 MAX BRIDGE - ОБЯЗАТЕЛЬНО ДЛЯ РАБОТЫ В МЕССЕНДЖЕРЕ MAX 🔥 -->
+    <!-- MAX Bridge -->
     <script src="https://st.max.ru/js/max-web-app.js"></script>
     
     <link rel="stylesheet" href="/static/styles.css">
     <style>
-        /* Базовые стили на время загрузки (до применения темы) */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
         body {
             background-color: #0e1621;
             color: #ffffff;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             margin: 0;
             padding: 0;
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
+            height: 100%;
         }
         
-        /* Стили для загрузки */
+        .app {
+            display: flex;
+            height: 100vh;
+            width: 100%;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .chats-panel {
+            width: 280px;
+            background: var(--max-panel-bg, #17212b);
+            border-right: 1px solid var(--max-border, #0f1b26);
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.3s ease;
+            z-index: 20;
+        }
+        
+        @media (max-width: 768px) {
+            .chats-panel {
+                position: fixed;
+                left: 0;
+                top: 0;
+                height: 100%;
+                transform: translateX(-100%);
+                width: 280px;
+                box-shadow: 2px 0 10px rgba(0,0,0,0.3);
+            }
+            .chats-panel.open {
+                transform: translateX(0);
+            }
+        }
+        
+        .chats-header {
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--max-border, #0f1b26);
+        }
+        
+        .chats-title {
+            font-size: 20px;
+            font-weight: bold;
+        }
+        
+        .new-chat-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: var(--max-blue, #248bf2);
+            padding: 8px;
+        }
+        
+        .chats-search {
+            padding: 12px;
+        }
+        
+        .chats-search input {
+            width: 100%;
+            padding: 10px 14px;
+            background: var(--max-input-bg, #1f2c38);
+            border: none;
+            border-radius: 20px;
+            color: var(--max-text, white);
+            font-size: 14px;
+        }
+        
+        .chats-list {
+            flex: 1;
+            overflow-y: auto;
+        }
+        
+        .chat-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 16px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .chat-item:hover {
+            background: var(--max-hover, #2b3b4a);
+        }
+        
+        .chat-item.active {
+            background: var(--max-hover, #2b3b4a);
+        }
+        
+        .chat-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            overflow: hidden;
+            margin-right: 12px;
+        }
+        
+        .chat-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .chat-info {
+            flex: 1;
+        }
+        
+        .chat-name {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        
+        .chat-preview {
+            font-size: 12px;
+            color: var(--max-text-secondary, #8e9aa6);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .chat-time {
+            font-size: 11px;
+            color: var(--max-text-secondary, #8e9aa6);
+        }
+        
+        .chats-footer {
+            padding: 16px;
+            border-top: 1px solid var(--max-border, #0f1b26);
+        }
+        
+        .user-mini-profile {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .user-mini-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            overflow: hidden;
+        }
+        
+        .user-mini-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .user-mini-name {
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .user-mini-status {
+            font-size: 11px;
+            color: var(--max-text-secondary, #8e9aa6);
+        }
+        
+        .chat-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--max-bg, #0e1621);
+            overflow: hidden;
+        }
+        
+        .chat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            background: var(--max-header-bg, #1f2c38);
+            border-bottom: 1px solid var(--max-border, #0f1b26);
+        }
+        
+        .chat-header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .mobile-menu-btn {
+            display: none;
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: var(--max-text, white);
+            padding: 8px;
+        }
+        
+        @media (max-width: 768px) {
+            .mobile-menu-btn {
+                display: block;
+            }
+        }
+        
+        .chat-header-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            overflow: hidden;
+        }
+        
+        .chat-header-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .chat-header-name {
+            font-weight: 600;
+            font-size: 16px;
+        }
+        
+        .chat-header-status {
+            font-size: 12px;
+            color: var(--max-text-secondary, #8e9aa6);
+        }
+        
+        .header-btn {
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            color: var(--max-text, white);
+            padding: 8px;
+        }
+        
+        .screen-container {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 20px;
+            -webkit-overflow-scrolling: touch;
+        }
+        
         .loading-screen {
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            height: 100vh;
+            min-height: 300px;
             text-align: center;
             padding: 20px;
         }
@@ -51,16 +299,15 @@
         .loading-text {
             margin-top: 20px;
             font-size: 16px;
-            color: var(--max-text-secondary);
+            color: var(--max-text-secondary, #8e9aa6);
         }
         
-        /* Стили для экрана входа */
         .login-screen {
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            min-height: 100%;
+            min-height: 400px;
             text-align: center;
             padding: 40px 20px;
         }
@@ -74,7 +321,7 @@
             font-size: 28px;
             font-weight: bold;
             margin-bottom: 16px;
-            background: linear-gradient(135deg, var(--max-blue), #6c5ce7);
+            background: linear-gradient(135deg, var(--max-blue, #248bf2), #6c5ce7);
             -webkit-background-clip: text;
             background-clip: text;
             color: transparent;
@@ -82,14 +329,14 @@
         
         .login-text {
             font-size: 16px;
-            color: var(--max-text-secondary);
+            color: var(--max-text-secondary, #8e9aa6);
             line-height: 1.6;
             margin-bottom: 32px;
             max-width: 400px;
         }
         
         .login-btn {
-            background: var(--max-blue);
+            background: var(--max-blue, #248bf2);
             border: none;
             border-radius: 40px;
             padding: 14px 32px;
@@ -97,15 +344,8 @@
             font-weight: 600;
             color: white;
             cursor: pointer;
-            transition: all 0.2s;
         }
         
-        .login-btn:hover {
-            transform: scale(1.02);
-            background: var(--max-blue-hover);
-        }
-        
-        /* Стили для голосовых функций */
         .voice-input-area {
             display: flex;
             align-items: center;
@@ -124,15 +364,14 @@
             color: white;
             font-size: 28px;
             cursor: pointer;
-            transition: all 0.2s;
             display: flex;
             align-items: center;
             justify-content: center;
             box-shadow: 0 2px 8px rgba(0,0,0,0.2);
         }
         
-        .voice-record-btn:hover {
-            transform: scale(1.05);
+        .voice-record-btn:active {
+            transform: scale(0.95);
         }
         
         .voice-record-btn.recording {
@@ -166,7 +405,7 @@
             align-items: center;
             gap: 8px;
             font-size: 12px;
-            color: var(--max-text-secondary);
+            color: var(--max-text-secondary, #8e9aa6);
             margin-top: 8px;
             justify-content: center;
         }
@@ -184,12 +423,15 @@
             50% { opacity: 0.3; }
         }
         
-        /* Аудиоплеер (скрытый) */
+        .voice-hint-text {
+            font-size: 12px;
+            color: var(--max-text-secondary, #8e9aa6);
+        }
+        
         #hiddenAudioPlayer {
             display: none;
         }
         
-        /* Toast уведомления */
         .toast-message {
             position: fixed;
             bottom: 120px;
@@ -204,6 +446,7 @@
             transition: opacity 0.3s;
             opacity: 0;
             pointer-events: none;
+            font-size: 14px;
         }
         
         .toast-message.show {
@@ -222,31 +465,451 @@
             background: var(--max-blue, #248bf2);
         }
         
-        /* Адаптация для мобильных */
+        .microphone-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.95);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            backdrop-filter: blur(8px);
+        }
+        
+        .microphone-modal-content {
+            background: var(--max-panel-bg, #17212b);
+            border-radius: 28px;
+            max-width: 340px;
+            width: 90%;
+            padding: 28px 24px;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+        }
+        
         @media (max-width: 480px) {
+            .screen-container {
+                padding: 16px;
+            }
             .voice-record-btn {
                 width: 48px;
                 height: 48px;
                 font-size: 24px;
             }
-            
             .recording-timer {
                 bottom: 80px;
                 padding: 6px 16px;
                 font-size: 16px;
             }
-            
             .toast-message {
                 bottom: 100px;
                 padding: 10px 16px;
                 font-size: 14px;
             }
         }
+        
+        @supports (padding: max(0px)) {
+            .screen-container {
+                padding-left: max(20px, env(safe-area-inset-left));
+                padding-right: max(20px, env(safe-area-inset-right));
+                padding-bottom: max(20px, env(safe-area-inset-bottom));
+            }
+            .chat-header {
+                padding-top: max(12px, env(safe-area-inset-top));
+            }
+            .recording-timer {
+                bottom: max(100px, env(safe-area-inset-bottom) + 60px);
+            }
+            .toast-message {
+                bottom: max(120px, env(safe-area-inset-bottom) + 80px);
+            }
+        }
+        
+        /* Стили для онбординга и теста */
+        .onboarding-container, .context-container, .benefits-container, .final-profile-container, .ask-question-container, .choose-goal-container, .choose-mode-container, .thought-result-container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        .onboarding-content, .context-content, .benefits-content, .final-profile-content, .ask-question-content, .choose-goal-content, .choose-mode-content, .thought-result-content {
+            background: var(--max-panel-bg, #17212b);
+            border-radius: 24px;
+            padding: 24px;
+        }
+        
+        .onboarding-title {
+            font-size: 28px;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 8px;
+        }
+        
+        .onboarding-subtitle {
+            text-align: center;
+            color: var(--max-text-secondary, #8e9aa6);
+            margin-bottom: 24px;
+        }
+        
+        .onboarding-text {
+            line-height: 1.6;
+            margin-bottom: 24px;
+        }
+        
+        .onboarding-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .onboarding-btn {
+            padding: 14px;
+            border-radius: 40px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+        }
+        
+        .onboarding-btn.primary {
+            background: var(--max-blue, #248bf2);
+            border: none;
+            color: white;
+        }
+        
+        .onboarding-btn.secondary {
+            background: transparent;
+            border: 1px solid var(--max-border, #2b3b4a);
+            color: var(--max-text, white);
+        }
+        
+        .context-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .context-question {
+            font-size: 18px;
+            margin-bottom: 8px;
+        }
+        
+        .context-hint {
+            font-size: 14px;
+            color: var(--max-text-secondary, #8e9aa6);
+            margin-bottom: 16px;
+        }
+        
+        .context-input-group {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        
+        .context-input {
+            flex: 1;
+            padding: 14px;
+            background: var(--max-input-bg, #1f2c38);
+            border: none;
+            border-radius: 40px;
+            color: var(--max-text, white);
+            font-size: 16px;
+        }
+        
+        .context-submit {
+            background: var(--max-blue, #248bf2);
+            border: none;
+            border-radius: 40px;
+            padding: 14px 20px;
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+        }
+        
+        .context-skip {
+            background: transparent;
+            border: none;
+            color: var(--max-text-secondary, #8e9aa6);
+            padding: 12px;
+            cursor: pointer;
+            width: 100%;
+        }
+        
+        .gender-buttons {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        
+        .gender-btn {
+            flex: 1;
+            padding: 16px;
+            background: var(--max-input-bg, #1f2c38);
+            border: none;
+            border-radius: 40px;
+            color: var(--max-text, white);
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .gender-emoji {
+            font-size: 32px;
+        }
+        
+        .benefits-list {
+            margin: 20px 0;
+        }
+        
+        .benefit-item {
+            margin-bottom: 16px;
+            padding: 12px;
+            background: var(--max-input-bg, #1f2c38);
+            border-radius: 16px;
+        }
+        
+        .benefit-stage {
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+        
+        .benefit-desc {
+            font-size: 14px;
+            color: var(--max-text-secondary, #8e9aa6);
+        }
+        
+        .benefits-after {
+            background: var(--max-input-bg, #1f2c38);
+            padding: 16px;
+            border-radius: 16px;
+            margin: 20px 0;
+            line-height: 1.6;
+        }
+        
+        .profile-header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        
+        .profile-emoji {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+        
+        .profile-title {
+            font-size: 24px;
+        }
+        
+        .profile-text {
+            line-height: 1.6;
+            margin-bottom: 24px;
+            white-space: pre-wrap;
+        }
+        
+        .profile-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .button-row {
+            display: flex;
+            gap: 12px;
+        }
+        
+        .button-row .onboarding-btn {
+            flex: 1;
+        }
+        
+        .ask-question-title, .choose-goal-title, .choose-mode-title {
+            font-size: 24px;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+        
+        .ask-question-text, .mode-description, .goal-description {
+            margin-bottom: 20px;
+            line-height: 1.6;
+            text-align: center;
+        }
+        
+        .voice-hint {
+            background: var(--max-input-bg, #1f2c38);
+            padding: 12px;
+            border-radius: 16px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .question-input-area {
+            margin-bottom: 20px;
+        }
+        
+        .input-group {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        
+        .question-input {
+            flex: 1;
+            padding: 14px;
+            background: var(--max-input-bg, #1f2c38);
+            border: none;
+            border-radius: 40px;
+            color: var(--max-text, white);
+            font-size: 16px;
+        }
+        
+        .question-submit {
+            background: var(--max-blue, #248bf2);
+            border: none;
+            border-radius: 40px;
+            padding: 14px 20px;
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+        }
+        
+        .profile-badge, .mode-badge {
+            background: var(--max-input-bg, #1f2c38);
+            padding: 12px;
+            border-radius: 16px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .badge-label {
+            font-size: 12px;
+            color: var(--max-text-secondary, #8e9aa6);
+            margin-right: 8px;
+        }
+        
+        .badge-code {
+            font-weight: bold;
+            font-family: monospace;
+        }
+        
+        .mode-cards {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        
+        .mode-card {
+            background: var(--max-input-bg, #1f2c38);
+            border-radius: 20px;
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+        }
+        
+        .mode-card.selected {
+            border-color: var(--max-blue, #248bf2);
+            background: var(--max-hover, #2b3b4a);
+        }
+        
+        .mode-emoji {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+        
+        .mode-name {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        
+        .mode-desc, .mode-what, .mode-get {
+            font-size: 13px;
+            color: var(--max-text-secondary, #8e9aa6);
+            margin-top: 4px;
+        }
+        
+        .goals-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        
+        .goal-card {
+            background: var(--max-input-bg, #1f2c38);
+            border-radius: 16px;
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .goal-card:hover {
+            background: var(--max-hover, #2b3b4a);
+        }
+        
+        .goal-name {
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+        
+        .goal-time, .goal-difficulty {
+            font-size: 12px;
+            color: var(--max-text-secondary, #8e9aa6);
+        }
+        
+        .thought-text {
+            line-height: 1.8;
+            margin-bottom: 24px;
+            white-space: pre-wrap;
+        }
+        
+        .question-back, .goal-back, .mode-back, .thought-buttons {
+            margin-top: 20px;
+        }
+        
+        .custom-goal {
+            margin-bottom: 16px;
+        }
+        
+        .dashboard-error {
+            text-align: center;
+            padding: 40px;
+        }
+        
+        .error-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+        
+        .error-title {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 12px;
+        }
+        
+        .error-text {
+            color: var(--max-text-secondary, #8e9aa6);
+            margin-bottom: 24px;
+        }
+        
+        .test-required-btn {
+            background: var(--max-blue, #248bf2);
+            border: none;
+            border-radius: 40px;
+            padding: 12px 24px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
     <div class="app" id="app">
-        <!-- ===== ЛЕВАЯ ПАНЕЛЬ (список чатов) ===== -->
         <div class="chats-panel" id="chatsPanel">
             <div class="chats-header">
                 <div class="chats-title">Мессенджер</div>
@@ -280,9 +943,7 @@
             </div>
         </div>
 
-        <!-- ===== ПРАВАЯ ПАНЕЛЬ (основной контент) ===== -->
         <div class="chat-panel" id="chatPanel">
-            <!-- Шапка чата -->
             <div class="chat-header" id="chatHeader">
                 <div class="chat-header-left">
                     <button class="mobile-menu-btn" id="mobileMenuBtn">☰</button>
@@ -298,10 +959,7 @@
                     <button class="header-btn" id="menuBtn">⋮</button>
                 </div>
             </div>
-
-            <!-- Контейнер для динамической загрузки экранов -->
             <div id="screenContainer" class="screen-container">
-                <!-- Экран загрузки -->
                 <div class="loading-screen">
                     <div class="loading-spinner">🧠</div>
                     <div class="loading-text">Загрузка личного кабинета...</div>
@@ -310,47 +968,32 @@
         </div>
     </div>
 
-    <!-- ===== СКРЫТЫЙ АУДИОПЛЕЕР ДЛЯ ВОСПРОИЗВЕДЕНИЯ ОТВЕТОВ ===== -->
     <audio id="hiddenAudioPlayer" preload="auto"></audio>
-
-    <!-- ===== ТАЙМЕР ЗАПИСИ ===== -->
     <div id="recordingTimer" class="recording-timer" style="display: none;">0s</div>
-    
-    <!-- ===== TOAST УВЕДОМЛЕНИЯ ===== -->
     <div id="toastMessage" class="toast-message"></div>
 
-    <!-- ===== ШАБЛОНЫ ЭКРАНОВ (для обратной совместимости) ===== -->
-
-    <!-- Экран 1: Приветствие (для тех, кто не прошел тест) -->
+    <!-- ШАБЛОНЫ ЭКРАНОВ -->
     <template id="onboardingScreen1">
         <div class="onboarding-container">
             <div class="onboarding-content">
                 <div class="onboarding-avatar">🧠</div>
                 <div class="onboarding-title">Фреди</div>
                 <div class="onboarding-subtitle">виртуальный психолог</div>
-                
                 <div class="onboarding-text" id="onboardingText1">
                     Привет, <span id="userNamePlaceholder">друг</span>!<br><br>
-                    
                     Я — Фреди, виртуальный психолог.<br>
                     Оцифрованная версия Андрея Мейстера — его цифровой слепок.<br><br>
-                    
                     🎭 Короче, я — это он, только батарейка дольше держит и пожрать не прошу.<br><br>
-                    
                     🕒 Нам нужно познакомиться, потому что я пока не экстрасенс.<br><br>
-                    
                     🧐 Чтобы я понимал, с кем имею дело — давай пройдём тест.<br><br>
-                    
                     📊 Всего 5 этапов:<br><br>
                     1️⃣ Конфигурация восприятия<br>
                     2️⃣ Конфигурация мышления<br>
                     3️⃣ Конфигурация поведения<br>
                     4️⃣ Точка роста<br>
                     5️⃣ Глубинные паттерны<br><br>
-                    
                     ⏱ 15 минут — и я буду знать о тебе больше, чем ты думаешь.
                 </div>
-                
                 <div class="onboarding-buttons">
                     <button class="onboarding-btn primary" id="startTestBtn">🚀 Давай, погнали!</button>
                     <button class="onboarding-btn secondary" id="whoAreYouBtn">🤨 А ты кто вообще такой?</button>
@@ -359,34 +1002,27 @@
         </div>
     </template>
 
-    <!-- Экран 2: "А ты кто вообще" -->
     <template id="onboardingScreen2">
         <div class="onboarding-container">
             <div class="onboarding-content">
                 <div class="onboarding-text">
                     🎭 Ну, вопрос хороший. Давайте по существу.<br><br>
-                    
                     Видите ли, дорогой человек, я — экспериментальная модель.<br>
                     Андрей Мейстер однажды подумал: "А что, если я создам свою цифровую копию? Пусть работает, пока я сплю, ем или просто ленюсь".<br><br>
-                    
                     Так я и появился. 🧠<br><br>
-                    
                     🧐 Что я умею:<br><br>
                     • Вижу паттерны там, где вы видите просто день сурка<br>
                     • Нахожу систему в ваших "случайных" решениях<br>
                     • Понимаю, почему вы выбираете одних и тех же "не тех" людей<br>
                     • Я реально беспристрастен — у меня нет плохого настроения<br><br>
-                    
                     🎯 Конкретно по тесту:<br><br>
                     1️⃣ Восприятие — поймём, какую линзу вы носите<br>
                     2️⃣ Мышление — узнаем, как вы пережёвываете реальность<br>
                     3️⃣ Поведение — посмотрим, что вы делаете "на автомате"<br>
                     4️⃣ Точка роста — я скажу, куда вам двигаться<br>
                     5️⃣ Глубинные паттерны — заглянем в детство и подсознание<br><br>
-                    
                     ⏱ 15 минут — и я составлю ваш профиль.
                 </div>
-                
                 <div class="onboarding-buttons">
                     <button class="onboarding-btn primary" id="letsGoBtn">👌 Погнали!</button>
                 </div>
@@ -394,90 +1030,66 @@
         </div>
     </template>
 
-    <!-- Экран 3: Сбор контекста (город) -->
     <template id="contextCityScreen">
         <div class="context-container">
             <div class="context-content">
                 <div class="context-title">📝 Давайте познакомимся</div>
-                
                 <div class="context-question">Из какого вы города?</div>
                 <div class="context-hint">(Напишите название)</div>
-                
                 <div class="context-input-group">
                     <input type="text" class="context-input" id="cityInput" placeholder="Например: Москва">
                     <button class="context-submit" id="submitCityBtn">➡️</button>
                 </div>
-                
                 <button class="context-skip" id="skipContextBtn">⏭ Позже</button>
             </div>
         </div>
     </template>
 
-    <!-- Экран 4: Выбор пола -->
     <template id="contextGenderScreen">
         <div class="context-container">
             <div class="context-content">
                 <div class="context-title">📝 Давайте познакомимся</div>
-                
                 <div class="context-question">Укажите ваш пол:</div>
-                
                 <div class="gender-buttons">
-                    <button class="gender-btn" id="genderMaleBtn">
-                        <span class="gender-emoji">👨</span>
-                        <span class="gender-text">Мужской</span>
-                    </button>
-                    <button class="gender-btn" id="genderFemaleBtn">
-                        <span class="gender-emoji">👩</span>
-                        <span class="gender-text">Женский</span>
-                    </button>
+                    <button class="gender-btn" id="genderMaleBtn"><span class="gender-emoji">👨</span><span class="gender-text">Мужской</span></button>
+                    <button class="gender-btn" id="genderFemaleBtn"><span class="gender-emoji">👩</span><span class="gender-text">Женский</span></button>
                 </div>
-                
                 <button class="context-skip" id="skipGenderBtn">⏭ Позже</button>
             </div>
         </div>
     </template>
 
-    <!-- Экран 5: Ввод возраста -->
     <template id="contextAgeScreen">
         <div class="context-container">
             <div class="context-content">
                 <div class="context-title">📝 Давайте познакомимся</div>
-                
                 <div class="context-question">Сколько вам лет?</div>
                 <div class="context-hint">(Напишите число)</div>
-                
                 <div class="context-input-group">
                     <input type="number" class="context-input" id="ageInput" placeholder="Например: 35" min="1" max="120">
                     <button class="context-submit" id="submitAgeBtn">➡️</button>
                 </div>
-                
                 <button class="context-skip" id="skipAgeBtn">⏭ Позже</button>
             </div>
         </div>
     </template>
 
-    <!-- Экран 6: Контекст собран (предложение теста) -->
     <template id="contextCompleteScreen">
         <div class="context-complete-container">
             <div class="context-complete-content">
                 <div class="context-complete-title">✅ Отлично! Теперь я знаю о вас:</div>
-                
                 <div class="context-info" id="contextInfo">
                     📍 Город: <span id="infoCity">Москва</span><br>
                     👤 Пол: <span id="infoGender">Мужчина</span><br>
                     📅 Возраст: <span id="infoAge">35</span> лет<br>
                     <span id="infoWeather">🌧 Погода: пасмурно, +5°C</span>
                 </div>
-                
                 <div class="context-next-text">
                     🎯 Теперь я буду учитывать это в наших разговорах!<br><br>
-                    
                     🧠 <b>ЧТО ДАЛЬШЕ?</b><br><br>
-                    
                     Чтобы я мог помочь по-настоящему, нужно пройти тест (15 минут).<br>
                     Он определит ваш психологический профиль по 4 векторам и глубинным паттернам.
                 </div>
-                
                 <div class="context-complete-buttons">
                     <button class="onboarding-btn primary" id="startRealTestBtn">🚀 НАЧАТЬ ТЕСТ</button>
                     <button class="onboarding-btn secondary" id="whatTestGivesBtn">📖 ЧТО ДАЕТ ТЕСТ</button>
@@ -487,51 +1099,26 @@
         </div>
     </template>
 
-    <!-- Экран 7: Что дает тест -->
     <template id="benefitsScreen">
         <div class="benefits-container">
             <div class="benefits-content">
                 <div class="benefits-title">🔍 ЧТО ВЫ УЗНАЕТЕ О СЕБЕ:</div>
-                
                 <div class="benefits-list">
-                    <div class="benefit-item">
-                        <div class="benefit-stage">🧠 ЭТАП 1: КОНФИГУРАЦИЯ ВОСПРИЯТИЯ</div>
-                        <div class="benefit-desc">Линза, через которую вы смотрите на мир.</div>
-                    </div>
-                    
-                    <div class="benefit-item">
-                        <div class="benefit-stage">🧠 ЭТАП 2: КОНФИГУРАЦИЯ МЫШЛЕНИЯ</div>
-                        <div class="benefit-desc">Как вы обрабатываете информацию.</div>
-                    </div>
-                    
-                    <div class="benefit-item">
-                        <div class="benefit-stage">🧠 ЭТАП 3: КОНФИГУРАЦИЯ ПОВЕДЕНИЯ</div>
-                        <div class="benefit-desc">Ваши автоматические реакции.</div>
-                    </div>
-                    
-                    <div class="benefit-item">
-                        <div class="benefit-stage">🧠 ЭТАП 4: ТОЧКА РОСТА</div>
-                        <div class="benefit-desc">Где находится рычаг изменений.</div>
-                    </div>
-                    
-                    <div class="benefit-item">
-                        <div class="benefit-stage">🧠 ЭТАП 5: ГЛУБИННЫЕ ПАТТЕРНЫ</div>
-                        <div class="benefit-desc">Тип привязанности, защитные механизмы, базовые убеждения.</div>
-                    </div>
+                    <div class="benefit-item"><div class="benefit-stage">🧠 ЭТАП 1: КОНФИГУРАЦИЯ ВОСПРИЯТИЯ</div><div class="benefit-desc">Линза, через которую вы смотрите на мир.</div></div>
+                    <div class="benefit-item"><div class="benefit-stage">🧠 ЭТАП 2: КОНФИГУРАЦИЯ МЫШЛЕНИЯ</div><div class="benefit-desc">Как вы обрабатываете информацию.</div></div>
+                    <div class="benefit-item"><div class="benefit-stage">🧠 ЭТАП 3: КОНФИГУРАЦИЯ ПОВЕДЕНИЯ</div><div class="benefit-desc">Ваши автоматические реакции.</div></div>
+                    <div class="benefit-item"><div class="benefit-stage">🧠 ЭТАП 4: ТОЧКА РОСТА</div><div class="benefit-desc">Где находится рычаг изменений.</div></div>
+                    <div class="benefit-item"><div class="benefit-stage">🧠 ЭТАП 5: ГЛУБИННЫЕ ПАТТЕРНЫ</div><div class="benefit-desc">Тип привязанности, защитные механизмы, базовые убеждения.</div></div>
                 </div>
-                
                 <div class="benefits-after">
                     ⚡ <b>ПОСЛЕ ТЕСТА ВЫ ПОЛУЧИТЕ:</b><br><br>
-                    
                     ✅ Полный психологический портрет<br>
                     ✅ Глубинный анализ подсознательных паттернов<br>
                     ✅ Выбор стиля общения: 🔮 КОУЧ | 🧠 ПСИХОЛОГ | ⚡ ТРЕНЕР<br>
                     ✅ Индивидуальный навигатор по целям<br>
                     ✅ Напоминания и поддержка на пути<br><br>
-                    
                     ⏱ <b>Всего 15 минут</b>
                 </div>
-                
                 <div class="benefits-buttons">
                     <button class="onboarding-btn primary" id="startTestFromBenefitsBtn">🚀 НАЧАТЬ ТЕСТ</button>
                     <button class="onboarding-btn secondary" id="backToContextBtn">◀️ НАЗАД</button>
@@ -540,21 +1127,11 @@
         </div>
     </template>
 
-    <!-- ========== ШАБЛОНЫ ПОСЛЕ ТЕСТА ========== -->
-
-    <!-- Экран 8: Финальный профиль (результаты теста) -->
     <template id="finalProfileScreen">
         <div class="final-profile-container">
             <div class="final-profile-content">
-                <div class="profile-header">
-                    <div class="profile-emoji">🧠</div>
-                    <h2 class="profile-title">ВАШ ПСИХОЛОГИЧЕСКИЙ ПОРТРЕТ</h2>
-                </div>
-                
-                <div class="profile-text" id="profileText">
-                    <!-- Здесь будет сгенерированный текст профиля -->
-                </div>
-                
+                <div class="profile-header"><div class="profile-emoji">🧠</div><h2 class="profile-title">ВАШ ПСИХОЛОГИЧЕСКИЙ ПОРТРЕТ</h2></div>
+                <div class="profile-text" id="profileText"></div>
                 <div class="profile-buttons">
                     <button class="onboarding-btn primary" id="psychologistThoughtBtn">🧠 МЫСЛИ ПСИХОЛОГА</button>
                     <div class="button-row">
@@ -567,154 +1144,73 @@
         </div>
     </template>
 
-    <!-- Экран 9: Задать вопрос (С ГОЛОСОВОЙ КНОПКОЙ) -->
     <template id="askQuestionScreen">
         <div class="ask-question-container">
             <div class="ask-question-content">
                 <h2 class="ask-question-title">✏️ ЗАДАВАЙТЕ ЛЮБОЙ ВОПРОС</h2>
-                
-                <div class="ask-question-text">
-                    Если мой создатель знает ответ на него — значит и я вам что-то отвечу 😉
-                </div>
-                
-                <div class="voice-hint">
-                    🎤 <b>Можно просто отправить голосовое сообщение</b> — я внимательно выслушаю.
-                </div>
-                
+                <div class="ask-question-text">Если мой создатель знает ответ на него — значит и я вам что-то отвечу 😉</div>
+                <div class="voice-hint">🎤 <b>Можно просто отправить голосовое сообщение</b> — я внимательно выслушаю.</div>
                 <div class="question-input-area">
                     <div class="input-group">
                         <input type="text" id="questionInput" class="question-input" placeholder="Напишите ваш вопрос...">
                         <button id="sendQuestionBtn" class="question-submit">➡️</button>
                     </div>
-                    
-                    <!-- 🔥 ГОЛОСОВАЯ КНОПКА 🔥 -->
                     <div class="voice-input-area">
                         <button id="voiceRecordBtn" class="voice-record-btn">🎤</button>
-                        <div class="voice-status" id="voiceStatus" style="display: none;">
-                            <span class="voice-status-dot"></span>
-                            <span>Запись...</span>
-                        </div>
-                        <div class="voice-hint-text">
-                            Нажмите и говорите (до 30 сек)
-                        </div>
+                        <div class="voice-status" id="voiceStatus" style="display: none;"><span class="voice-status-dot"></span><span>Запись...</span></div>
+                        <div class="voice-hint-text">Нажмите и говорите (до 30 сек)</div>
                     </div>
                 </div>
-                
-                <div class="question-back">
-                    <button class="onboarding-btn secondary" id="backToProfileBtn">◀️ НАЗАД</button>
-                </div>
+                <div class="question-back"><button class="onboarding-btn secondary" id="backToProfileBtn">◀️ НАЗАД</button></div>
             </div>
         </div>
     </template>
 
-    <!-- Экран 10: Выбор цели -->
     <template id="chooseGoalScreen">
         <div class="choose-goal-container">
             <div class="choose-goal-content">
                 <h2 class="choose-goal-title">🎯 ВЫБЕРИТЕ ЦЕЛЬ</h2>
-                
-                <div class="goal-description" id="goalDescription">
-                    <span id="goalUserName">друг</span>, я проанализировал твой профиль и подобрал цели, которые сейчас наиболее актуальны.
-                </div>
-                
-                <div class="profile-badge" id="profileBadge">
-                    <span class="badge-label">Твой профиль:</span>
-                    <span class="badge-code" id="profileCode">СБ-4_ТФ-4_УБ-4_ЧВ-4</span>
-                </div>
-                
-                <div class="mode-badge" id="modeBadge">
-                    <span class="badge-label">Режим:</span>
-                    <span class="badge-code" id="modeCode">🔮 КОУЧ</span>
-                </div>
-                
-                <div class="goals-list" id="goalsList">
-                    <!-- Цели будут подставлены динамически -->
-                </div>
-                
-                <div class="custom-goal">
-                    <button class="onboarding-btn secondary" id="customGoalBtn">✏️ Сформулирую сам</button>
-                </div>
-                
-                <div class="goal-back">
-                    <button class="onboarding-btn secondary" id="backToProfileFromGoalBtn">◀️ НАЗАД</button>
-                </div>
+                <div class="goal-description"><span id="goalUserName">друг</span>, я проанализировал твой профиль и подобрал цели, которые сейчас наиболее актуальны.</div>
+                <div class="profile-badge"><span class="badge-label">Твой профиль:</span><span class="badge-code" id="profileCode">СБ-4_ТФ-4_УБ-4_ЧВ-4</span></div>
+                <div class="mode-badge"><span class="badge-label">Режим:</span><span class="badge-code" id="modeCode">🔮 КОУЧ</span></div>
+                <div class="goals-list" id="goalsList"></div>
+                <div class="custom-goal"><button class="onboarding-btn secondary" id="customGoalBtn">✏️ Сформулирую сам</button></div>
+                <div class="goal-back"><button class="onboarding-btn secondary" id="backToProfileFromGoalBtn">◀️ НАЗАД</button></div>
             </div>
         </div>
     </template>
 
-    <!-- Экран 11: Выбор режима -->
     <template id="chooseModeScreen">
         <div class="choose-mode-container">
             <div class="choose-mode-content">
                 <h2 class="choose-mode-title">⚙️ ВЫБЕРИТЕ РЕЖИМ</h2>
-                
-                <div class="mode-description">
-                    Слушай, я могу быть разным. Хочешь конкретики — давай определимся, в каком качестве я сегодня буду полезен.
-                </div>
-                
-                <div class="profile-badge" id="modeProfileBadge">
-                    <span class="badge-label">Твой профиль:</span>
-                    <span class="badge-code" id="modeProfileCode">СБ-4_ТФ-4_УБ-4_ЧВ-4</span>
-                </div>
-                
+                <div class="mode-description">Слушай, я могу быть разным. Хочешь конкретики — давай определимся, в каком качестве я сегодня буду полезен.</div>
+                <div class="profile-badge"><span class="badge-label">Твой профиль:</span><span class="badge-code" id="modeProfileCode">СБ-4_ТФ-4_УБ-4_ЧВ-4</span></div>
                 <div class="mode-cards" id="modeCards">
-                    <div class="mode-card" data-mode="coach">
-                        <div class="mode-emoji">🔮</div>
-                        <div class="mode-name">КОУЧ</div>
-                        <div class="mode-desc">Если хочешь, чтобы я помог тебе самому найти решения.</div>
-                        <div class="mode-what">Задавать открытые вопросы, отражать твои мысли, направлять.</div>
-                        <div class="mode-get">• Жить станет легче<br>• Появится больше радости от простых вещей<br>• Начнёшь замечать возможности вместо проблем</div>
-                    </div>
-                    
-                    <div class="mode-card" data-mode="psychologist">
-                        <div class="mode-emoji">🧠</div>
-                        <div class="mode-name">ПСИХОЛОГ</div>
-                        <div class="mode-desc">Если хочешь копнуть вглубь, разобраться с причинами, а не следствиями.</div>
-                        <div class="mode-what">Исследовать твои глубинные паттерны, защитные механизмы, прошлый опыт.</div>
-                        <div class="mode-get">• Перестанешь реагировать на триггеры<br>• Исчезнут старые сценарии<br>• Поймёшь, откуда растут ноги у твоих страхов</div>
-                    </div>
-                    
-                    <div class="mode-card" data-mode="trainer">
-                        <div class="mode-emoji">⚡</div>
-                        <div class="mode-name">ТРЕНЕР</div>
-                        <div class="mode-desc">Если нужны чёткие инструменты, навыки и результат.</div>
-                        <div class="mode-what">Формировать твои поведенческие и мыслительные навыки.</div>
-                        <div class="mode-get">• Научишься чётко формулировать мысли<br>• Освоишь алгоритмы ведения переговоров<br>• Сформируешь полезные привычки</div>
-                    </div>
+                    <div class="mode-card" data-mode="coach"><div class="mode-emoji">🔮</div><div class="mode-name">КОУЧ</div><div class="mode-desc">Если хочешь, чтобы я помог тебе самому найти решения.</div><div class="mode-what">Задавать открытые вопросы, отражать твои мысли, направлять.</div><div class="mode-get">• Жить станет легче<br>• Появится больше радости от простых вещей<br>• Начнёшь замечать возможности вместо проблем</div></div>
+                    <div class="mode-card" data-mode="psychologist"><div class="mode-emoji">🧠</div><div class="mode-name">ПСИХОЛОГ</div><div class="mode-desc">Если хочешь копнуть вглубь, разобраться с причинами, а не следствиями.</div><div class="mode-what">Исследовать твои глубинные паттерны, защитные механизмы, прошлый опыт.</div><div class="mode-get">• Перестанешь реагировать на триггеры<br>• Исчезнут старые сценарии<br>• Поймёшь, откуда растут ноги у твоих страхов</div></div>
+                    <div class="mode-card" data-mode="trainer"><div class="mode-emoji">⚡</div><div class="mode-name">ТРЕНЕР</div><div class="mode-desc">Если нужны чёткие инструменты, навыки и результат.</div><div class="mode-what">Формировать твои поведенческие и мыслительные навыки.</div><div class="mode-get">• Научишься чётко формулировать мысли<br>• Освоишь алгоритмы ведения переговоров<br>• Сформируешь полезные привычки</div></div>
                 </div>
-                
-                <div class="mode-back">
-                    <button class="onboarding-btn secondary" id="backToProfileFromModeBtn">◀️ НАЗАД</button>
-                </div>
+                <div class="mode-back"><button class="onboarding-btn secondary" id="backToProfileFromModeBtn">◀️ НАЗАД</button></div>
             </div>
         </div>
     </template>
 
-    <!-- Экран 12: Мысли психолога (загрузка) -->
     <template id="psychologistThoughtLoadingScreen">
         <div class="thought-loading-container">
             <div class="thought-loading-content">
                 <div class="loading-spinner">🧠</div>
                 <div class="loading-text">Анализирую через конфайнмент-модель...</div>
                 <div class="loading-time">Это займёт около 15-20 секунд</div>
-                <div class="loading-dots">...</div>
             </div>
         </div>
     </template>
 
-    <!-- Экран 13: Мысли психолога (результат) -->
     <template id="psychologistThoughtResultScreen">
         <div class="thought-result-container">
             <div class="thought-result-content">
-                <div class="thought-header">
-                    <div class="thought-emoji">🧠</div>
-                    <h2 class="thought-title">МЫСЛИ ПСИХОЛОГА</h2>
-                </div>
-                
-                <div class="thought-text" id="thoughtText">
-                    <!-- Здесь будет сгенерированная мысль -->
-                </div>
-                
+                <div class="thought-header"><div class="thought-emoji">🧠</div><h2 class="thought-title">МЫСЛИ ПСИХОЛОГА</h2></div>
+                <div class="thought-text" id="thoughtText"></div>
                 <div class="thought-buttons">
                     <button class="onboarding-btn secondary" id="backToProfileFromThoughtBtn">◀️ НАЗАД</button>
                     <button class="onboarding-btn secondary" id="askQuestionFromThoughtBtn">🎤 ЗАДАТЬ ВОПРОС</button>
@@ -723,522 +1219,227 @@
         </div>
     </template>
 
-    <!-- Подключение скриптов -->
     <link rel="stylesheet" href="/static/styles.css">
-    
-    <!-- Сначала подключаем вспомогательные модули -->
     <script src="/static/context.js"></script>
     <script src="/static/onboarding.js"></script>
     <script src="/static/script.js"></script>
     <script src="/static/test.js"></script>
-    
-    <!-- Новые модули улучшений -->
     <script src="/static/animations.js"></script>
     <script src="/static/animated-avatar.js"></script>
     <script src="/static/dynamic-bg.js"></script>
     <script src="/static/challenges.js"></script>
     <script src="/static/notifications.js"></script>
     <script src="/static/psychometric.js"></script>
-    
-    <!-- Потом дашборд и API -->
     <script src="/static/api.js"></script>
     <script src="/static/dashboard.js"></script>
-    
-    <!-- ===== ОСНОВНАЯ ИНИЦИАЛИЗАЦИЯ - ТОЧКА ВХОДА В ЛИЧНЫЙ КАБИНЕТ ===== -->
+
+    <!-- ===== ОСНОВНАЯ ИНИЦИАЛИЗАЦИЯ ===== -->
     <script>
-        // Глобальные переменные
         window.dashboard = null;
         window.api = new FrediAPI();
         window.animationManager = null;
         window.dynamicBg = null;
-        
-        // Функция показа экрана загрузки
+
         function showLoading() {
             const container = document.getElementById('screenContainer');
-            if (container) {
-                container.innerHTML = `
-                    <div class="loading-screen">
-                        <div class="loading-spinner">🧠</div>
-                        <div class="loading-text">Загрузка личного кабинета...</div>
-                    </div>
-                `;
-            }
+            if (container) container.innerHTML = '<div class="loading-screen"><div class="loading-spinner">🧠</div><div class="loading-text">Загрузка личного кабинета...</div></div>';
         }
-        
-        // Функция показа экрана входа (если нет user_id)
+
         function showLoginScreen() {
             const container = document.getElementById('screenContainer');
-            if (container) {
-                container.innerHTML = `
-                    <div class="login-screen">
-                        <div class="login-icon">🔐</div>
-                        <div class="login-title">Личный кабинет Фреди</div>
-                        <div class="login-text">
-                            Для доступа к личному кабинету<br>
-                            необходимо открыть приложение через MAX.
-                        </div>
-                        <button class="login-btn" onclick="location.reload()">
-                            🔄 ПОВТОРИТЬ
-                        </button>
-                    </div>
-                `;
-            }
+            if (container) container.innerHTML = '<div class="login-screen"><div class="login-icon">🔐</div><div class="login-title">Личный кабинет Фреди</div><div class="login-text">Для доступа к личному кабинету необходимо открыть приложение через MAX.</div><button class="login-btn" onclick="location.reload()">🔄 ПОВТОРИТЬ</button></div>';
         }
-        
-        // Функция инициализации дашборда
+
         async function initDashboard() {
             const userId = window.maxContext?.user_id || localStorage.getItem('fredi_user_id');
-            
-            if (!userId) {
-                console.warn('⚠️ Нет user_id, показываем экран входа');
-                showLoginScreen();
-                return;
-            }
-            
-            console.log('🚀 Загрузка личного кабинета для пользователя:', userId);
+            if (!userId) { showLoginScreen(); return; }
+            console.log('🚀 Загрузка для:', userId);
             showLoading();
-            
             try {
-                // 1. Инициализация анимаций
-                window.animationManager = new AnimationManager({
-                    rootMargin: '0px 0px -50px 0px',
-                    threshold: 0.1,
-                    animationDuration: 0.4,
-                    staggerDelay: 0.05
-                });
-                
-                // 2. Инициализация динамического фона
-                window.dynamicBg = new DynamicBackground('app', {
-                    particlesCount: 50,
-                    particleSpeed: 0.5,
-                    gradientSpeed: 0.002,
-                    waveIntensity: 0.6
-                });
-                
-                // 3. Создаем экземпляр дашборда
+                window.animationManager = new AnimationManager({ rootMargin: '0px 0px -50px 0px', threshold: 0.1, animationDuration: 0.4, staggerDelay: 0.05 });
+                window.dynamicBg = new DynamicBackground('app', { particlesCount: 50, particleSpeed: 0.5, gradientSpeed: 0.002, waveIntensity: 0.6 });
                 window.dashboard = new FrediDashboard();
                 window.dashboard.userId = userId;
-                
-                // 4. Загружаем данные пользователя
                 await window.dashboard.loadUserData();
-                
-                // 5. Рендерим дашборд
                 window.dashboard.renderDashboard();
-                
-                // 6. Обновляем имя пользователя в левой панели
                 const userNameEl = document.getElementById('userName');
-                if (userNameEl && window.dashboard.userName) {
-                    userNameEl.textContent = window.dashboard.userName;
-                }
-                
-                // 7. Обновляем статус
+                if (userNameEl && window.dashboard.userName) userNameEl.textContent = window.dashboard.userName;
                 const userStatusEl = document.getElementById('userStatus');
-                if (userStatusEl) {
-                    if (window.dashboard.isTestCompleted) {
-                        userStatusEl.innerHTML = `🧠 ${window.dashboard.profileCode || 'профиль готов'}`;
-                    } else {
-                        userStatusEl.innerHTML = `📝 тест не пройден`;
-                    }
-                }
-                
-                // 8. Загружаем профиль для динамического фона
-                if (window.dynamicBg && window.dashboard.userId) {
-                    window.dynamicBg.updateFromProfile(window.dashboard.userId);
-                }
-                
-                // 9. Инициализация челленджей (если тест пройден)
-                if (window.dashboard.isTestCompleted && window.ChallengeManager) {
-                    window.dashboard.challengeManager = new ChallengeManager(window.dashboard.userId, window.dashboard.userData);
-                    await window.dashboard.challengeManager.init();
-                    window.dashboard.renderChallengesWidget();
-                    
-                    // Подписываемся на события челленджей
-                    window.dashboard.challengeManager.addListener((event, data) => {
-                        if (event === 'level_up') {
-                            window.dashboard.showFloatingMessage(`🎉 Уровень ${data.level} достигнут!`, 'success');
-                        } else if (event === 'challenge_completed') {
-                            window.dashboard.showFloatingMessage(`🏆 Выполнен челлендж: ${data.name}`, 'success');
-                        }
-                    });
-                }
-                
-                // 10. Инициализация психометрических двойников
-                if (window.dashboard.isTestCompleted && window.PsychometricDoubles) {
-                    window.dashboard.initPsychometricDoubles();
-                }
-                
-                // 11. Инициализация уведомлений
-                if (window.NotificationManager && window.dashboard.isTestCompleted) {
-                    window.dashboard.notificationManager = new NotificationManager(window.dashboard.userId, window.dashboard.userName);
-                    await window.dashboard.notificationManager.init();
-                }
-                
-                // 12. Анимация модулей после загрузки
-                setTimeout(() => {
-                    if (window.animationManager) {
-                        window.animationManager.animateGrid('.modules-grid', '.module-card', 'scale-in');
-                        window.animationManager.animateGrid('.quick-actions-grid', '.quick-action', 'fade-in-up');
-                        if (document.querySelector('.doubles-list')) {
-                            window.animationManager.animateGrid('.doubles-list', '.double-card', 'fade-in-left');
-                        }
-                        if (document.querySelector('.challenges-widget')) {
-                            window.animationManager.animateElementNow(document.querySelector('.challenges-widget'), 'fade-in-up', 0.5, 0.2);
-                        }
-                    }
-                }, 500);
-                
+                if (userStatusEl) userStatusEl.innerHTML = window.dashboard.isTestCompleted ? `🧠 ${window.dashboard.profileCode || 'профиль готов'}` : `📝 тест не пройден`;
+                if (window.dynamicBg && window.dashboard.userId) window.dynamicBg.updateFromProfile(window.dashboard.userId);
                 console.log('✅ Личный кабинет загружен');
-                
             } catch (error) {
-                console.error('❌ Ошибка загрузки личного кабинета:', error);
-                
-                // Показываем экран ошибки
+                console.error('❌ Ошибка:', error);
                 const container = document.getElementById('screenContainer');
-                if (container) {
-                    container.innerHTML = `
-                        <div class="dashboard-error">
-                            <div class="error-icon">⚠️</div>
-                            <div class="error-title">Ошибка загрузки</div>
-                            <div class="error-text">
-                                Не удалось загрузить данные профиля.<br>
-                                Пожалуйста, проверьте подключение к интернету.
-                            </div>
-                            <button class="test-required-btn" onclick="location.reload()">
-                                🔄 ПОВТОРИТЬ
-                            </button>
-                        </div>
-                    `;
-                }
+                if (container) container.innerHTML = '<div class="dashboard-error"><div class="error-icon">⚠️</div><div class="error-title">Ошибка загрузки</div><div class="error-text">Не удалось загрузить данные профиля.</div><button class="test-required-btn" onclick="location.reload()">🔄 ПОВТОРИТЬ</button></div>';
             }
         }
-        
-        // ===== ПОЛУЧЕНИЕ USER_ID ОТ MAX =====
+
         (function() {
             let userId = null;
-            let chatId = null;
-            let accessToken = null;
-            
-            // 1. Пробуем получить из URL параметров
             const urlParams = new URLSearchParams(window.location.search);
             userId = urlParams.get('user_id');
-            chatId = urlParams.get('chat_id');
-            accessToken = urlParams.get('access_token');
-            
-            if (userId) {
-                console.log('✅ user_id получен из URL:', userId);
-            }
-            
-            // 2. Пробуем получить из MAX WebApp
-            if (!userId && window.MAX?.WebApp?.initDataUnsafe?.user?.id) {
-                userId = window.MAX.WebApp.initDataUnsafe.user.id;
-                console.log('✅ user_id получен из MAX.WebApp:', userId);
-            }
-            
-            // 3. Пробуем получить из Telegram WebApp
-            if (!userId && window.Telegram?.WebApp?.initDataUnsafe?.user?.id) {
-                userId = window.Telegram.WebApp.initDataUnsafe.user.id;
-                console.log('✅ user_id получен из Telegram.WebApp:', userId);
-            }
-            
-            // 4. Пробуем получить из localStorage
-            if (!userId) {
-                const savedUserId = localStorage.getItem('fredi_user_id');
-                if (savedUserId) {
-                    userId = savedUserId;
-                    console.log('💾 user_id получен из localStorage:', userId);
-                }
-            }
-            
-            // 5. Тестовый режим
-            if (!userId) {
-                const testMode = localStorage.getItem('fredi_test_mode');
-                if (testMode === 'true') {
-                    userId = prompt('🧪 ТЕСТОВЫЙ РЕЖИМ\n\nВведите ваш ID пользователя:', '213102077');
-                    if (userId) {
-                        localStorage.setItem('fredi_user_id', userId);
-                        localStorage.setItem('fredi_test_mode', 'true');
-                        console.log('🔧 Установлен тестовый user_id:', userId);
-                    } else {
-                        userId = '213102077';
-                        console.warn('⚠️ Используем тестовый user_id:', userId);
-                    }
-                }
-            }
-            
-            // Сохраняем в localStorage
-            if (userId && userId !== '213102077') {
-                localStorage.setItem('fredi_user_id', userId);
-            }
-            
-            // Сохраняем глобально
-            window.maxContext = {
-                user_id: userId,
-                chat_id: chatId,
-                access_token: accessToken
-            };
-            
-            console.log('🎯 Итоговый user_id:', userId);
-            console.log('📦 maxContext:', window.maxContext);
-            
-            // Сообщаем MAX, что приложение загружено
-            if (window.MAX?.WebApp) {
-                window.MAX.WebApp.ready();
-                window.MAX.WebApp.expand();
-            }
-            if (window.Telegram?.WebApp) {
-                window.Telegram.WebApp.ready();
-                window.Telegram.WebApp.expand();
-            }
-            
-            // Запускаем инициализацию дашборда
+            if (!userId && window.MAX?.WebApp?.initDataUnsafe?.user?.id) userId = window.MAX.WebApp.initDataUnsafe.user.id;
+            if (!userId && window.Telegram?.WebApp?.initDataUnsafe?.user?.id) userId = window.Telegram.WebApp.initDataUnsafe.user.id;
+            if (!userId) userId = localStorage.getItem('fredi_user_id');
+            if (userId && userId !== '213102077') localStorage.setItem('fredi_user_id', userId);
+            window.maxContext = { user_id: userId };
+            console.log('🎯 user_id:', userId);
+            if (window.MAX?.WebApp) { window.MAX.WebApp.ready(); window.MAX.WebApp.expand(); }
+            if (window.Telegram?.WebApp) { window.Telegram.WebApp.ready(); window.Telegram.WebApp.expand(); }
             initDashboard();
         })();
 
-        // ===== ПОЛУЧЕНИЕ ТЕМЫ ОТ MAX =====
-        (function() {
-            function applyMaxTheme(theme) {
-                console.log('🎨 Применяем тему MAX:', theme);
-                
-                const root = document.documentElement;
-                
-                root.style.setProperty('--max-bg', theme.bg_color || '#0e1621');
-                root.style.setProperty('--max-panel-bg', theme.secondary_bg_color || '#17212b');
-                root.style.setProperty('--max-header-bg', theme.header_bg_color || '#1f2c38');
-                root.style.setProperty('--max-input-bg', theme.input_bg_color || '#1f2c38');
-                root.style.setProperty('--max-text', theme.text_color || '#ffffff');
-                root.style.setProperty('--max-text-secondary', theme.hint_color || '#8e9aa6');
-                root.style.setProperty('--max-border', theme.separator_color || '#0f1b26');
-                root.style.setProperty('--max-hover', theme.section_bg_color || '#2b3b4a');
-                root.style.setProperty('--max-blue', theme.accent_text_color || '#248bf2');
-                root.style.setProperty('--max-message-bot', theme.message_bg_color || '#1f2c38');
-                root.style.setProperty('--max-message-user', theme.message_user_bg_color || '#2b5278');
-                root.style.setProperty('--glass-bg', 'rgba(255,255,255,0.05)');
-                root.style.setProperty('--glass-border', 'rgba(255,255,255,0.1)');
-                
-                document.body.style.backgroundColor = theme.bg_color || '#0e1621';
-                document.body.style.color = theme.text_color || '#ffffff';
-                
-                localStorage.setItem('max_theme', JSON.stringify(theme));
-                
-                // Обновляем динамический фон, если он существует
-                if (window.dynamicBg) {
-                    window.dynamicBg.setTheme(theme.isDark ? 'night' : 'day');
-                }
-            }
-            
-            if (window.MAX?.WebApp) {
-                try {
-                    const theme = window.MAX.WebApp.themeParams;
-                    if (theme) {
-                        applyMaxTheme(theme);
+        document.addEventListener('DOMContentLoaded', function() {
+            const menuBtn = document.getElementById('mobileMenuBtn');
+            const chatsPanel = document.getElementById('chatsPanel');
+            if (menuBtn && chatsPanel) {
+                menuBtn.addEventListener('click', () => chatsPanel.classList.toggle('open'));
+                document.addEventListener('click', (e) => {
+                    if (window.innerWidth <= 768 && chatsPanel.classList.contains('open') && !chatsPanel.contains(e.target) && !menuBtn.contains(e.target)) {
+                        chatsPanel.classList.remove('open');
                     }
-                    
-                    window.MAX.WebApp.onEvent('themeChanged', function(newTheme) {
-                        applyMaxTheme(newTheme);
-                    });
-                } catch (e) {
-                    console.warn('❌ Ошибка получения темы MAX:', e);
-                }
-            } else {
-                try {
-                    const savedTheme = localStorage.getItem('max_theme');
-                    if (savedTheme) {
-                        applyMaxTheme(JSON.parse(savedTheme));
-                    }
-                } catch (e) {
-                    console.warn('❌ Ошибка загрузки темы:', e);
-                }
+                });
             }
-        })();
+        });
     </script>
-    
-    <!-- ===== ИНИЦИАЛИЗАЦИЯ ГОЛОСОВЫХ ФУНКЦИЙ ===== -->
+
+    <!-- ===== МИКРОФОН ДЛЯ MAX - ПРАВИЛЬНЫЙ ===== -->
     <script>
-        // Глобальные переменные для голоса
-        window.voiceRecorder = {
-            mediaRecorder: null,
-            audioChunks: [],
-            isRecording: false,
-            recordingStartTime: null,
-            recordingTimer: null
-        };
-        
-        // Функция показа уведомления
-        function showToast(message, type = 'info') {
-            const toast = document.getElementById('toastMessage');
-            if (!toast) return;
-            
-            toast.textContent = message;
-            toast.className = `toast-message ${type} show`;
-            
-            setTimeout(() => {
-                toast.classList.remove('show');
-            }, 3000);
+        class MaxMicrophoneManager {
+            constructor() { this.hasPermission = false; }
+            async requestMicrophone() {
+                console.log('🎤 Запрос микрофона...');
+                this.showLoading();
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    this.hasPermission = true;
+                    this.hideLoading();
+                    this.showToast('✅ Микрофон готов!', 'success');
+                    stream.getTracks().forEach(track => track.stop());
+                    return true;
+                } catch (error) {
+                    this.hideLoading();
+                    console.error('❌ Ошибка:', error);
+                    if (error.name === 'NotAllowedError') this.showPermissionInstructions();
+                    else if (error.name === 'NotFoundError') this.showToast('❌ Микрофон не найден на устройстве', 'error');
+                    else this.showToast(`❌ Ошибка: ${error.message}`, 'error');
+                    return false;
+                }
+            }
+            showPermissionInstructions() {
+                const isAndroid = /Android/i.test(navigator.userAgent);
+                const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+                let instructions = '';
+                if (isAndroid) instructions = '🔊 <b>МИКРОФОН ЗАБЛОКИРОВАН В MAX</b><br><br>1️⃣ Закройте чат с ботом<br>2️⃣ Откройте <b>Настройки</b> телефона<br>3️⃣ Перейдите в <b>Приложения</b> → <b>MAX</b><br>4️⃣ Нажмите <b>Разрешения</b><br>5️⃣ Включите <b>Микрофон</b> → <b>Разрешить</b><br><br>6️⃣ Вернитесь в чат и нажмите 🎤 ещё раз';
+                else if (isIOS) instructions = '🎤 <b>МИКРОФОН ЗАБЛОКИРОВАН В MAX</b><br><br>1️⃣ Закройте чат с ботом<br>2️⃣ Откройте <b>Настройки</b> iPhone<br>3️⃣ Прокрутите вниз → найдите <b>MAX</b><br>4️⃣ Нажмите на приложение<br>5️⃣ Включите переключатель <b>Микрофон</b><br><br>6️⃣ Вернитесь в чат и нажмите 🎤 ещё раз';
+                else instructions = '🎤 <b>МИКРОФОН ЗАБЛОКИРОВАН</b><br><br>В настройках браузера разрешите доступ к микрофону.';
+                const modal = document.createElement('div');
+                modal.className = 'microphone-modal';
+                modal.innerHTML = `<div class="microphone-modal-content"><div style="font-size:48px;margin-bottom:16px;">🎤</div><h3 style="margin:0 0 12px 0;">Нужен доступ к микрофону</h3><div style="color:var(--max-text-secondary,#8e9aa6);line-height:1.6;text-align:left;font-size:14px;">${instructions}</div><div style="display:flex;gap:12px;margin-top:28px;"><button id="microphoneRetryBtn" style="flex:1;background:var(--max-blue,#248bf2);border:none;border-radius:40px;padding:14px;color:white;font-weight:bold;cursor:pointer;">🔄 ПРОВЕРИТЬ СНОВА</button><button id="microphoneCloseBtn" style="flex:1;background:transparent;border:1px solid var(--max-border,#2b3b4a);border-radius:40px;padding:14px;color:var(--max-text,white);cursor:pointer;">📱 ЗАКРЫТЬ</button></div></div>`;
+                document.body.appendChild(modal);
+                document.getElementById('microphoneRetryBtn')?.addEventListener('click', () => { modal.remove(); this.requestMicrophone(); });
+                document.getElementById('microphoneCloseBtn')?.addEventListener('click', () => modal.remove());
+            }
+            showToast(message, type) {
+                const toast = document.getElementById('toastMessage');
+                if (toast) { toast.textContent = message; toast.className = `toast-message ${type} show`; setTimeout(() => toast.classList.remove('show'), 3000); }
+            }
+            showLoading() { const btn = document.getElementById('voiceRecordBtn'); if (btn) { btn.textContent = '⏳'; btn.disabled = true; } }
+            hideLoading() { const btn = document.getElementById('voiceRecordBtn'); if (btn) { btn.textContent = '🎤'; btn.disabled = false; } }
         }
-        
-        // Функция начала записи
+
+        window.maxMicrophoneManager = new MaxMicrophoneManager();
+        window.voiceRecorder = { mediaRecorder: null, audioChunks: [], isRecording: false, recordingStartTime: null, recordingTimer: null };
+
         window.startVoiceRecording = async function() {
-            if (window.voiceRecorder.isRecording) {
-                stopVoiceRecording();
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                window.maxMicrophoneManager.showToast('❌ Ваше устройство не поддерживает голосовой ввод', 'error');
                 return;
             }
-            
+            const granted = await window.maxMicrophoneManager.requestMicrophone();
+            if (!granted) return;
+            if (window.voiceRecorder.isRecording) { stopVoiceRecording(); return; }
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                
-                window.voiceRecorder.mediaRecorder = new MediaRecorder(stream, {
-                    mimeType: MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/ogg'
-                });
+                window.voiceRecorder.mediaRecorder = new MediaRecorder(stream, { mimeType: MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/ogg' });
                 window.voiceRecorder.audioChunks = [];
-                
-                window.voiceRecorder.mediaRecorder.ondataavailable = (event) => {
-                    if (event.data.size > 0) {
-                        window.voiceRecorder.audioChunks.push(event.data);
-                    }
-                };
-                
+                window.voiceRecorder.mediaRecorder.ondataavailable = (event) => { if (event.data.size > 0) window.voiceRecorder.audioChunks.push(event.data); };
                 window.voiceRecorder.mediaRecorder.onstop = async () => {
                     stream.getTracks().forEach(track => track.stop());
                     const audioBlob = new Blob(window.voiceRecorder.audioChunks, { type: 'audio/webm' });
                     await sendVoiceToServer(audioBlob);
                 };
-                
                 window.voiceRecorder.mediaRecorder.start(1000);
                 window.voiceRecorder.isRecording = true;
                 window.voiceRecorder.recordingStartTime = Date.now();
-                
                 const voiceBtn = document.getElementById('voiceRecordBtn');
-                if (voiceBtn) {
-                    voiceBtn.textContent = '⏹️';
-                    voiceBtn.classList.add('recording');
-                }
-                
+                if (voiceBtn) { voiceBtn.textContent = '⏹️'; voiceBtn.classList.add('recording'); }
                 const voiceStatus = document.getElementById('voiceStatus');
                 if (voiceStatus) voiceStatus.style.display = 'flex';
-                
                 startRecordingTimerUI();
-                
-                setTimeout(() => {
-                    if (window.voiceRecorder.isRecording) stopVoiceRecording();
-                }, 30000);
-                
-            } catch (error) {
-                console.error('Microphone error:', error);
-                showToast('Не удалось получить доступ к микрофону', 'error');
-            }
+                setTimeout(() => { if (window.voiceRecorder.isRecording) stopVoiceRecording(); }, 30000);
+            } catch (error) { console.error('Recording error:', error); window.maxMicrophoneManager.showToast('❌ Ошибка записи', 'error'); }
         };
-        
-        // Функция остановки записи
+
         window.stopVoiceRecording = function() {
             if (window.voiceRecorder.mediaRecorder && window.voiceRecorder.isRecording) {
                 window.voiceRecorder.mediaRecorder.stop();
                 window.voiceRecorder.isRecording = false;
                 stopRecordingTimerUI();
-                
                 const voiceBtn = document.getElementById('voiceRecordBtn');
-                if (voiceBtn) {
-                    voiceBtn.textContent = '🎤';
-                    voiceBtn.classList.remove('recording');
-                }
-                
+                if (voiceBtn) { voiceBtn.textContent = '🎤'; voiceBtn.classList.remove('recording'); }
                 const voiceStatus = document.getElementById('voiceStatus');
                 if (voiceStatus) voiceStatus.style.display = 'none';
             }
         };
-        
+
         function startRecordingTimerUI() {
             const timerEl = document.getElementById('recordingTimer');
             if (!timerEl) return;
-            
             if (window.voiceRecorder.recordingTimer) clearInterval(window.voiceRecorder.recordingTimer);
-            
             window.voiceRecorder.recordingTimer = setInterval(() => {
                 if (window.voiceRecorder.isRecording && window.voiceRecorder.recordingStartTime) {
                     const elapsed = Math.floor((Date.now() - window.voiceRecorder.recordingStartTime) / 1000);
                     timerEl.textContent = `${elapsed}s`;
                     timerEl.style.display = 'block';
-                    
                     if (elapsed >= 30) stopVoiceRecording();
                 }
             }, 1000);
         }
-        
+
         function stopRecordingTimerUI() {
-            if (window.voiceRecorder.recordingTimer) {
-                clearInterval(window.voiceRecorder.recordingTimer);
-                window.voiceRecorder.recordingTimer = null;
-            }
+            if (window.voiceRecorder.recordingTimer) { clearInterval(window.voiceRecorder.recordingTimer); window.voiceRecorder.recordingTimer = null; }
             const timerEl = document.getElementById('recordingTimer');
             if (timerEl) timerEl.style.display = 'none';
         }
-        
+
         async function sendVoiceToServer(audioBlob) {
-            showToast('Распознаю речь...', 'info');
-            
+            window.maxMicrophoneManager.showToast('Распознаю речь...', 'info');
             const formData = new FormData();
             formData.append('user_id', window.maxContext?.user_id || localStorage.getItem('fredi_user_id'));
             formData.append('voice', audioBlob, 'voice.webm');
-            
             try {
-                const response = await fetch('/api/voice/process', {
-                    method: 'POST',
-                    body: formData
-                });
-                
+                const response = await fetch('/api/voice/process', { method: 'POST', body: formData });
                 const result = await response.json();
-                
                 if (result.success) {
-                    if (result.recognized_text) {
-                        showToast(`🎤 Вы сказали: ${result.recognized_text}`, 'success');
-                    }
-                    if (result.answer) {
-                        const container = document.getElementById('screenContainer');
-                        if (container && window.dashboard) {
-                            window.dashboard.showFloatingMessage(result.answer, 'info');
-                        }
-                    }
-                    if (result.audio_url) {
-                        const audio = document.getElementById('hiddenAudioPlayer');
-                        if (audio) {
-                            audio.src = result.audio_url;
-                            audio.play().catch(e => console.warn('Audio play error:', e));
-                        }
-                    }
-                } else {
-                    showToast(result.error || 'Не удалось распознать речь', 'error');
-                }
-            } catch (error) {
-                console.error('Send voice error:', error);
-                showToast('Ошибка отправки голоса', 'error');
-            }
+                    if (result.recognized_text) window.maxMicrophoneManager.showToast(`🎤 ${result.recognized_text}`, 'success');
+                    if (result.answer && window.dashboard) window.dashboard.showFloatingMessage?.(result.answer, 'info');
+                    if (result.audio_url) { const audio = document.getElementById('hiddenAudioPlayer'); if (audio) { audio.src = result.audio_url; audio.play().catch(e => console.warn(e)); } }
+                } else { window.maxMicrophoneManager.showToast(result.error || 'Не удалось распознать речь', 'error'); }
+            } catch (error) { console.error('Send voice error:', error); window.maxMicrophoneManager.showToast('Ошибка отправки голоса', 'error'); }
         }
-        
+
         document.addEventListener('DOMContentLoaded', function() {
             const voiceBtn = document.getElementById('voiceRecordBtn');
-            if (voiceBtn) {
-                voiceBtn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    if (window.startVoiceRecording) {
-                        window.startVoiceRecording();
-                    }
-                });
-            }
+            if (voiceBtn) voiceBtn.addEventListener('click', (e) => { e.preventDefault(); window.startVoiceRecording(); });
         });
-        
-        window.showToast = showToast;
+
+        window.showToast = window.maxMicrophoneManager.showToast.bind(window.maxMicrophoneManager);
         window.sendVoiceToServer = sendVoiceToServer;
-        
-        // Регистрация Service Worker
+
         if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js')
-                    .then(registration => {
-                        console.log('✅ Service Worker зарегистрирован:', registration.scope);
-                    })
-                    .catch(error => {
-                        console.error('❌ Ошибка регистрации Service Worker:', error);
-                    });
-            });
+            window.addEventListener('load', () => { navigator.serviceWorker.register('/sw.js').catch(error => console.error('Service Worker error:', error)); });
         }
     </script>
 </body>

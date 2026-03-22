@@ -1,6 +1,6 @@
 // ============================================
 // ЛИЧНЫЙ КАБИНЕТ - КОНСОРЦИУМ ФРЕДИ
-// Версия 2.2 - полная интеграция со всеми модулями
+// Версия 2.3 - исправлено отображение модулей
 // ============================================
 
 class FrediDashboard {
@@ -30,19 +30,19 @@ class FrediDashboard {
         this.recordingTimer = null;
         this.recordingStartTime = null;
         
-        // Модули консорциума
-        this.modules = {
-            strategy: { name: '🎯 Стратегия', icon: '🎯', color: '#4CAF50', requiresTest: true, weakVector: 'sb', description: 'Построение планов и достижение целей' },
-            reputation: { name: '🏆 Репутация', icon: '🏆', color: '#FF9800', requiresTest: true, weakVector: 'chv', description: 'Управление впечатлением и авторитетом' },
-            goals: { name: '📊 Цели', icon: '📊', color: '#2196F3', requiresTest: true, weakVector: null, description: 'Ваши цели и задачи' },
-            entertainment: { name: '🎮 Развлечения', icon: '🎮', color: '#9C27B0', requiresTest: false, weakVector: null, description: 'Идеи для отдыха' },
-            psychology: { name: '🧠 Психология', icon: '🧠', color: '#E91E63', requiresTest: true, weakVector: 'ub', description: 'Глубинные паттерны' },
-            habits: { name: '🔄 Привычки', icon: '🔄', color: '#00BCD4', requiresTest: true, weakVector: null, description: 'Полезные привычки' },
-            communication: { name: '💬 Общение', icon: '💬', color: '#3F51B5', requiresTest: false, weakVector: 'chv', description: 'Советы по общению' },
-            finance: { name: '💰 Финансы', icon: '💰', color: '#FFC107', requiresTest: true, weakVector: 'tf', description: 'Управление деньгами' },
-            health: { name: '❤️ Здоровье', icon: '❤️', color: '#F44336', requiresTest: false, weakVector: null, description: 'Забота о себе' },
-            creativity: { name: '🎨 Творчество', icon: '🎨', color: '#FF6B6B', requiresTest: false, weakVector: null, description: 'Вдохновение и идеи' }
-        };
+        // Базовые модули консорциума (всегда доступны)
+        this.allModules = [
+            { id: 'strategy', name: '🎯 Стратегия', icon: '🎯', color: '#4CAF50', description: 'Построение планов и достижение целей' },
+            { id: 'reputation', name: '🏆 Репутация', icon: '🏆', color: '#FF9800', description: 'Управление впечатлением и авторитетом' },
+            { id: 'goals', name: '📊 Цели', icon: '📊', color: '#2196F3', description: 'Ваши цели и задачи' },
+            { id: 'entertainment', name: '🎮 Развлечения', icon: '🎮', color: '#9C27B0', description: 'Идеи для отдыха' },
+            { id: 'psychology', name: '🧠 Психология', icon: '🧠', color: '#E91E63', description: 'Глубинные паттерны' },
+            { id: 'habits', name: '🔄 Привычки', icon: '🔄', color: '#00BCD4', description: 'Полезные привычки' },
+            { id: 'communication', name: '💬 Общение', icon: '💬', color: '#3F51B5', description: 'Советы по общению' },
+            { id: 'finance', name: '💰 Финансы', icon: '💰', color: '#FFC107', description: 'Управление деньгами' },
+            { id: 'health', name: '❤️ Здоровье', icon: '❤️', color: '#F44336', description: 'Забота о себе' },
+            { id: 'creativity', name: '🎨 Творчество', icon: '🎨', color: '#FF6B6B', description: 'Вдохновение и идеи' }
+        ];
         
         this.init();
     }
@@ -55,7 +55,6 @@ class FrediDashboard {
             return;
         }
         
-        // Проверяем поддержку микрофона
         this.checkMicrophoneSupport();
         
         await this.loadUserData();
@@ -64,7 +63,6 @@ class FrediDashboard {
         this.renderDashboard();
         this.initVoiceInput();
         
-        // Инициализация дополнительных модулей после загрузки данных
         if (this.isTestCompleted) {
             await this.initAnimatedAvatar();
             await this.initChallenges();
@@ -366,7 +364,8 @@ class FrediDashboard {
     }
     
     renderMainDashboard(container) {
-        const personalizedModules = this.getPersonalizedModules();
+        // ✅ ВСЕГДА показываем модули, независимо от теста
+        const modulesToShow = this.getPersonalizedModules();
         
         container.innerHTML = `
             <div class="dashboard-container">
@@ -404,9 +403,9 @@ class FrediDashboard {
                     </div>
                 </div>
                 
-                <!-- Модули-ярлыки -->
+                <!-- Модули-ярлыки (всегда показываются) -->
                 <div class="modules-grid" id="modulesGrid">
-                    ${personalizedModules.map(module => `
+                    ${modulesToShow.map(module => `
                         <div class="module-card" data-module="${module.id}" style="border-left-color: ${module.color}">
                             <div class="module-icon">${module.icon}</div>
                             <div class="module-name">${module.name}</div>
@@ -668,45 +667,13 @@ class FrediDashboard {
     }
     
     // ============================================
-    // ПЕРСОНАЛИЗАЦИЯ
+    // ПЕРСОНАЛИЗАЦИЯ МОДУЛЕЙ (ВСЕГДА ВОЗВРАЩАЕТ МАССИВ)
     // ============================================
     
     getPersonalizedModules() {
-        if (!this.isTestCompleted) {
-            return [
-                { id: 'test', name: '🧪 Пройти тест', icon: '🧪', color: '#FF9800', description: 'Узнайте свой профиль' },
-                { id: 'entertainment', name: '🎮 Развлечения', icon: '🎮', color: '#9C27B0', description: 'Идеи для досуга' },
-                { id: 'communication', name: '💬 Общение', icon: '💬', color: '#3F51B5', description: 'Советы по общению' }
-            ];
-        }
-        
-        const profileScores = this.extractProfileScores();
-        const modules = [];
-        
-        if (profileScores.sb < 3) {
-            modules.push({ ...this.modules.strategy, description: 'Укрепляем границы' });
-        }
-        if (profileScores.tf < 3) {
-            modules.push({ ...this.modules.finance, description: 'Развиваем финансовое мышление' });
-        }
-        if (profileScores.ub < 3) {
-            modules.push({ ...this.modules.psychology, description: 'Глубинные паттерны' });
-        }
-        if (profileScores.chv < 3) {
-            modules.push({ ...this.modules.communication, description: 'Улучшаем отношения' });
-        }
-        
-        const commonModules = [
-            { ...this.modules.goals, description: 'Ваши цели и задачи' },
-            { ...this.modules.habits, description: 'Полезные привычки' },
-            { ...this.modules.entertainment, description: 'Идеи для отдыха' },
-            { ...this.modules.health, description: 'Забота о себе' }
-        ];
-        
-        modules.push(...commonModules);
-        
-        const unique = modules.filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
-        return unique.slice(0, 9);
+        // ✅ ВСЕГДА возвращаем модули, даже если тест не пройден
+        // Просто показываем все модули, они будут работать
+        return this.allModules;
     }
     
     extractProfileScores() {
@@ -781,7 +748,6 @@ class FrediDashboard {
     
     formatTextForDisplay(text) {
         if (!text) return '';
-        // Заменяем переносы строк на <br> и обрабатываем markdown
         return text.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
     }
     
@@ -853,7 +819,7 @@ class FrediDashboard {
     }
     
     // ============================================
-    // ГОЛОСОВОЙ ВВОД (С ДЕТАЛЬНЫМИ ОШИБКАМИ)
+    // ГОЛОСОВОЙ ВВОД
     // ============================================
     
     setupVoiceButton(button) {

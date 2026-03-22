@@ -5,6 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Фреди · виртуальный психолог</title>
     
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#248bf2">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Фреди">
+    <link rel="apple-touch-icon" href="/icon-192.png">
+    
     <!-- 🔥 MAX BRIDGE - ОБЯЗАТЕЛЬНО ДЛЯ РАБОТЫ В МЕССЕНДЖЕРЕ MAX 🔥 -->
     <script src="https://st.max.ru/js/max-web-app.js"></script>
     
@@ -261,7 +269,7 @@
             </div>
             <div class="chats-footer" id="chatsFooter">
                 <div class="user-mini-profile" id="userMiniProfile">
-                    <div class="user-mini-avatar">
+                    <div class="user-mini-avatar" id="userMiniAvatar">
                         <img src="https://ui-avatars.com/api/?name=Я&background=248bf2&color=fff&size=64" alt="Я" id="userAvatar">
                     </div>
                     <div class="user-mini-info">
@@ -278,7 +286,7 @@
             <div class="chat-header" id="chatHeader">
                 <div class="chat-header-left">
                     <button class="mobile-menu-btn" id="mobileMenuBtn">☰</button>
-                    <div class="chat-header-avatar">
+                    <div class="chat-header-avatar" id="chatHeaderAvatar">
                         <img src="https://ui-avatars.com/api/?name=Ф&background=248bf2&color=fff&size=128" alt="Ф">
                     </div>
                     <div class="chat-header-info">
@@ -724,6 +732,14 @@
     <script src="/static/script.js"></script>
     <script src="/static/test.js"></script>
     
+    <!-- Новые модули улучшений -->
+    <script src="/static/animations.js"></script>
+    <script src="/static/animated-avatar.js"></script>
+    <script src="/static/dynamic-bg.js"></script>
+    <script src="/static/challenges.js"></script>
+    <script src="/static/notifications.js"></script>
+    <script src="/static/psychometric.js"></script>
+    
     <!-- Потом дашборд и API -->
     <script src="/static/api.js"></script>
     <script src="/static/dashboard.js"></script>
@@ -733,6 +749,8 @@
         // Глобальные переменные
         window.dashboard = null;
         window.api = new FrediAPI();
+        window.animationManager = null;
+        window.dynamicBg = null;
         
         // Функция показа экрана загрузки
         function showLoading() {
@@ -781,23 +799,39 @@
             showLoading();
             
             try {
-                // Создаем экземпляр дашборда
+                // 1. Инициализация анимаций
+                window.animationManager = new AnimationManager({
+                    rootMargin: '0px 0px -50px 0px',
+                    threshold: 0.1,
+                    animationDuration: 0.4,
+                    staggerDelay: 0.05
+                });
+                
+                // 2. Инициализация динамического фона
+                window.dynamicBg = new DynamicBackground('app', {
+                    particlesCount: 50,
+                    particleSpeed: 0.5,
+                    gradientSpeed: 0.002,
+                    waveIntensity: 0.6
+                });
+                
+                // 3. Создаем экземпляр дашборда
                 window.dashboard = new FrediDashboard();
                 window.dashboard.userId = userId;
                 
-                // Загружаем данные пользователя
+                // 4. Загружаем данные пользователя
                 await window.dashboard.loadUserData();
                 
-                // Рендерим дашборд
+                // 5. Рендерим дашборд
                 window.dashboard.renderDashboard();
                 
-                // Обновляем имя пользователя в левой панели
+                // 6. Обновляем имя пользователя в левой панели
                 const userNameEl = document.getElementById('userName');
                 if (userNameEl && window.dashboard.userName) {
                     userNameEl.textContent = window.dashboard.userName;
                 }
                 
-                // Обновляем статус
+                // 7. Обновляем статус
                 const userStatusEl = document.getElementById('userStatus');
                 if (userStatusEl) {
                     if (window.dashboard.isTestCompleted) {
@@ -806,6 +840,52 @@
                         userStatusEl.innerHTML = `📝 тест не пройден`;
                     }
                 }
+                
+                // 8. Загружаем профиль для динамического фона
+                if (window.dynamicBg && window.dashboard.userId) {
+                    window.dynamicBg.updateFromProfile(window.dashboard.userId);
+                }
+                
+                // 9. Инициализация челленджей (если тест пройден)
+                if (window.dashboard.isTestCompleted && window.ChallengeManager) {
+                    window.dashboard.challengeManager = new ChallengeManager(window.dashboard.userId, window.dashboard.userData);
+                    await window.dashboard.challengeManager.init();
+                    window.dashboard.renderChallengesWidget();
+                    
+                    // Подписываемся на события челленджей
+                    window.dashboard.challengeManager.addListener((event, data) => {
+                        if (event === 'level_up') {
+                            window.dashboard.showFloatingMessage(`🎉 Уровень ${data.level} достигнут!`, 'success');
+                        } else if (event === 'challenge_completed') {
+                            window.dashboard.showFloatingMessage(`🏆 Выполнен челлендж: ${data.name}`, 'success');
+                        }
+                    });
+                }
+                
+                // 10. Инициализация психометрических двойников
+                if (window.dashboard.isTestCompleted && window.PsychometricDoubles) {
+                    window.dashboard.initPsychometricDoubles();
+                }
+                
+                // 11. Инициализация уведомлений
+                if (window.NotificationManager && window.dashboard.isTestCompleted) {
+                    window.dashboard.notificationManager = new NotificationManager(window.dashboard.userId, window.dashboard.userName);
+                    await window.dashboard.notificationManager.init();
+                }
+                
+                // 12. Анимация модулей после загрузки
+                setTimeout(() => {
+                    if (window.animationManager) {
+                        window.animationManager.animateGrid('.modules-grid', '.module-card', 'scale-in');
+                        window.animationManager.animateGrid('.quick-actions-grid', '.quick-action', 'fade-in-up');
+                        if (document.querySelector('.doubles-list')) {
+                            window.animationManager.animateGrid('.doubles-list', '.double-card', 'fade-in-left');
+                        }
+                        if (document.querySelector('.challenges-widget')) {
+                            window.animationManager.animateElementNow(document.querySelector('.challenges-widget'), 'fade-in-up', 0.5, 0.2);
+                        }
+                    }
+                }, 500);
                 
                 console.log('✅ Личный кабинет загружен');
                 
@@ -939,6 +1019,11 @@
                 document.body.style.color = theme.text_color || '#ffffff';
                 
                 localStorage.setItem('max_theme', JSON.stringify(theme));
+                
+                // Обновляем динамический фон, если он существует
+                if (window.dynamicBg) {
+                    window.dynamicBg.setTheme(theme.isDark ? 'night' : 'day');
+                }
             }
             
             if (window.MAX?.WebApp) {
@@ -1142,6 +1227,19 @@
         
         window.showToast = showToast;
         window.sendVoiceToServer = sendVoiceToServer;
+        
+        // Регистрация Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(registration => {
+                        console.log('✅ Service Worker зарегистрирован:', registration.scope);
+                    })
+                    .catch(error => {
+                        console.error('❌ Ошибка регистрации Service Worker:', error);
+                    });
+            });
+        }
     </script>
 </body>
 </html>

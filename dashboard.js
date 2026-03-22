@@ -1,6 +1,6 @@
 // ============================================
 // ЛИЧНЫЙ КАБИНЕТ - КОНСОРЦИУМ ФРЕДИ
-// Версия 2.3 - исправлено отображение модулей
+// Версия 2.4 - поддержка микрофона в MAX + мобильная адаптация
 // ============================================
 
 class FrediDashboard {
@@ -55,6 +55,9 @@ class FrediDashboard {
             return;
         }
         
+        // ✅ ЗАПРОС РАЗРЕШЕНИЯ НА МИКРОФОН
+        await this.requestMicrophonePermission();
+        
         this.checkMicrophoneSupport();
         
         await this.loadUserData();
@@ -65,9 +68,10 @@ class FrediDashboard {
         
         if (this.isTestCompleted) {
             await this.initAnimatedAvatar();
-            await this.initChallenges();
-            await this.initPsychometricDoubles();
-            await this.initNotifications();
+            // Временно отключаем проблемные модули
+            // await this.initChallenges();
+            // await this.initPsychometricDoubles();
+            // await this.initNotifications();
         }
     }
     
@@ -76,6 +80,22 @@ class FrediDashboard {
     // ============================================
     
     checkMicrophoneSupport() {
+        // 1. Проверяем через MAX WebApp
+        if (window.MAX && window.MAX.WebApp) {
+            console.log('✅ MAX WebApp доступен');
+            
+            if (window.MAX.WebApp.isMediaSupported && window.MAX.WebApp.isMediaSupported('audio')) {
+                console.log('✅ MAX поддерживает аудио');
+                return true;
+            }
+            
+            if (window.MAX.WebApp.getUserMedia) {
+                console.log('✅ MAX имеет getUserMedia');
+                return true;
+            }
+        }
+        
+        // 2. Fallback на стандартный Web API
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
             console.warn('⚠️ getUserMedia не поддерживается в этом браузере');
             const voiceBtn = document.getElementById('dashboardVoiceBtn');
@@ -86,8 +106,64 @@ class FrediDashboard {
             }
             return false;
         }
-        console.log('✅ Микрофон поддерживается');
+        
+        console.log('✅ Микрофон поддерживается через Web API');
         return true;
+    }
+    
+    // ============================================
+    // ЗАПРОС РАЗРЕШЕНИЯ НА МИКРОФОН
+    // ============================================
+    
+    async requestMicrophonePermission() {
+        // 1. Пробуем через MAX WebApp
+        if (window.MAX && window.MAX.WebApp && window.MAX.WebApp.requestMediaPermission) {
+            try {
+                console.log('🎤 Запрос разрешения через MAX...');
+                const result = await window.MAX.WebApp.requestMediaPermission('audio');
+                if (result === 'granted') {
+                    console.log('✅ Разрешение на микрофон получено через MAX');
+                    return true;
+                } else {
+                    console.warn('⚠️ Разрешение отклонено в MAX:', result);
+                }
+            } catch (e) {
+                console.warn('Ошибка запроса через MAX:', e);
+            }
+        }
+        
+        // 2. Пробуем через MAX WebApp getUserMedia (альтернативный способ)
+        if (window.MAX && window.MAX.WebApp && window.MAX.WebApp.getUserMedia) {
+            try {
+                console.log('🎤 Проверка микрофона через MAX getUserMedia...');
+                const stream = await window.MAX.WebApp.getUserMedia({ audio: true });
+                stream.getTracks().forEach(track => track.stop());
+                console.log('✅ Микрофон доступен через MAX');
+                return true;
+            } catch (e) {
+                console.warn('MAX getUserMedia не сработал:', e);
+            }
+        }
+        
+        // 3. Fallback на стандартный Web API
+        try {
+            console.log('🎤 Запрос разрешения через Web API...');
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            stream.getTracks().forEach(track => track.stop());
+            console.log('✅ Разрешение на микрофон получено через Web API');
+            return true;
+        } catch (error) {
+            console.error('❌ Ошибка доступа к микрофону:', error);
+            
+            let errorMessage = '❌ Не удалось получить доступ к микрофону.';
+            if (error.name === 'NotAllowedError') {
+                errorMessage = '❌ Разрешение на использование микрофона отклонено.\n\nВ MAX: нажмите на значок 🔒 в адресной строке и разрешите доступ к микрофону.\n\nВ браузере: проверьте настройки разрешений.';
+            } else if (error.name === 'NotFoundError') {
+                errorMessage = '❌ Микрофон не найден. Подключите микрофон и попробуйте снова.';
+            }
+            this.showFloatingMessage(errorMessage, 'error');
+            return false;
+        }
     }
     
     // ============================================
@@ -364,7 +440,6 @@ class FrediDashboard {
     }
     
     renderMainDashboard(container) {
-        // ✅ ВСЕГДА показываем модули, независимо от теста
         const modulesToShow = this.getPersonalizedModules();
         
         container.innerHTML = `
@@ -403,7 +478,7 @@ class FrediDashboard {
                     </div>
                 </div>
                 
-                <!-- Модули-ярлыки (всегда показываются) -->
+                <!-- Модули-ярлыки -->
                 <div class="modules-grid" id="modulesGrid">
                     ${modulesToShow.map(module => `
                         <div class="module-card" data-module="${module.id}" style="border-left-color: ${module.color}">
@@ -667,12 +742,10 @@ class FrediDashboard {
     }
     
     // ============================================
-    // ПЕРСОНАЛИЗАЦИЯ МОДУЛЕЙ (ВСЕГДА ВОЗВРАЩАЕТ МАССИВ)
+    // ПЕРСОНАЛИЗАЦИЯ МОДУЛЕЙ
     // ============================================
     
     getPersonalizedModules() {
-        // ✅ ВСЕГДА возвращаем модули, даже если тест не пройден
-        // Просто показываем все модули, они будут работать
         return this.allModules;
     }
     
@@ -819,7 +892,7 @@ class FrediDashboard {
     }
     
     // ============================================
-    // ГОЛОСОВОЙ ВВОД
+    // ГОЛОСОВОЙ ВВОД (с поддержкой MAX)
     // ============================================
     
     setupVoiceButton(button) {
@@ -836,19 +909,41 @@ class FrediDashboard {
             try {
                 console.log('🎤 Запрос доступа к микрофону...');
                 
-                const stream = await navigator.mediaDevices.getUserMedia({ 
-                    audio: {
-                        echoCancellation: true,
-                        noiseSuppression: true,
-                        autoGainControl: true
-                    } 
-                });
+                let stream = null;
+                let mimeType = '';
                 
-                console.log('✅ Доступ к микрофону получен');
+                // 1. Пробуем через MAX WebApp
+                if (window.MAX && window.MAX.WebApp && window.MAX.WebApp.getUserMedia) {
+                    try {
+                        stream = await window.MAX.WebApp.getUserMedia({ audio: true });
+                        console.log('✅ Доступ к микрофону через MAX');
+                    } catch (e) {
+                        console.warn('MAX getUserMedia не сработал:', e);
+                    }
+                }
                 
-                mediaRecorder = new MediaRecorder(stream, {
-                    mimeType: MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/ogg'
-                });
+                // 2. Fallback на стандартный Web API
+                if (!stream) {
+                    stream = await navigator.mediaDevices.getUserMedia({ 
+                        audio: {
+                            echoCancellation: true,
+                            noiseSuppression: true,
+                            autoGainControl: true
+                        } 
+                    });
+                    console.log('✅ Доступ к микрофону через Web API');
+                }
+                
+                // Определяем поддерживаемый MIME тип
+                if (MediaRecorder.isTypeSupported('audio/webm')) {
+                    mimeType = 'audio/webm';
+                } else if (MediaRecorder.isTypeSupported('audio/ogg')) {
+                    mimeType = 'audio/ogg';
+                } else {
+                    mimeType = '';
+                }
+                
+                mediaRecorder = new MediaRecorder(stream, { mimeType });
                 audioChunks = [];
                 
                 mediaRecorder.ondataavailable = (event) => {
@@ -857,7 +952,7 @@ class FrediDashboard {
                 
                 mediaRecorder.onstop = async () => {
                     stream.getTracks().forEach(track => track.stop());
-                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    const audioBlob = new Blob(audioChunks, { type: mimeType || 'audio/webm' });
                     await this.sendVoiceToServer(audioBlob);
                     
                     if (timerInterval) clearInterval(timerInterval);
@@ -889,8 +984,8 @@ class FrediDashboard {
                 
                 let errorMessage = '❌ Не удалось получить доступ к микрофону.';
                 
-                if (error.name === 'NotAllowedError') {
-                    errorMessage = '❌ Разрешение на использование микрофона отклонено. Нажмите на значок замка 🔒 в адресной строке и разрешите доступ к микрофону.';
+                if (error.name === 'NotAllowedError' || error.message?.includes('permission')) {
+                    errorMessage = '❌ Разрешение на использование микрофона отклонено.\n\nВ MAX: нажмите на значок 🔒 в адресной строке и разрешите доступ к микрофону.\n\nВ браузере: проверьте настройки разрешений.';
                 } else if (error.name === 'NotFoundError') {
                     errorMessage = '❌ Микрофон не найден. Подключите микрофон и попробуйте снова.';
                 } else if (error.name === 'NotReadableError') {

@@ -19,7 +19,85 @@
             padding: 0;
         }
         
-        /* ===== СТИЛИ ДЛЯ ГОЛОСОВЫХ ФУНКЦИЙ ===== */
+        /* Стили для загрузки */
+        .loading-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .loading-spinner {
+            font-size: 48px;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        .loading-text {
+            margin-top: 20px;
+            font-size: 16px;
+            color: var(--max-text-secondary);
+        }
+        
+        /* Стили для экрана входа */
+        .login-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100%;
+            text-align: center;
+            padding: 40px 20px;
+        }
+        
+        .login-icon {
+            font-size: 64px;
+            margin-bottom: 24px;
+        }
+        
+        .login-title {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, var(--max-blue), #6c5ce7);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        
+        .login-text {
+            font-size: 16px;
+            color: var(--max-text-secondary);
+            line-height: 1.6;
+            margin-bottom: 32px;
+            max-width: 400px;
+        }
+        
+        .login-btn {
+            background: var(--max-blue);
+            border: none;
+            border-radius: 40px;
+            padding: 14px 32px;
+            font-size: 18px;
+            font-weight: 600;
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .login-btn:hover {
+            transform: scale(1.02);
+            background: var(--max-blue-hover);
+        }
+        
+        /* Стили для голосовых функций */
         .voice-input-area {
             display: flex;
             align-items: center;
@@ -159,185 +237,6 @@
     </style>
 </head>
 <body>
-    <script>
-        // ===== ПОЛУЧЕНИЕ USER_ID ОТ MAX =====
-        (function() {
-            let userId = null;
-            let chatId = null;
-            let accessToken = null;
-            
-            // 1. Пробуем получить из URL параметров (прямая ссылка)
-            const urlParams = new URLSearchParams(window.location.search);
-            userId = urlParams.get('user_id');
-            chatId = urlParams.get('chat_id');
-            accessToken = urlParams.get('access_token');
-            
-            if (userId) {
-                console.log('✅ user_id получен из URL:', userId);
-            }
-            
-            // 2. Пробуем получить из MAX WebApp (если открыто внутри MAX)
-            if (!userId && window.MAX?.WebApp?.initDataUnsafe?.user?.id) {
-                userId = window.MAX.WebApp.initDataUnsafe.user.id;
-                console.log('✅ user_id получен из MAX.WebApp:', userId);
-            }
-            
-            // 3. Пробуем получить из Telegram WebApp (для совместимости)
-            if (!userId && window.Telegram?.WebApp?.initDataUnsafe?.user?.id) {
-                userId = window.Telegram.WebApp.initDataUnsafe.user.id;
-                console.log('✅ user_id получен из Telegram.WebApp:', userId);
-            }
-            
-            // 4. Пробуем получить из localStorage (для тестирования)
-            if (!userId) {
-                const savedUserId = localStorage.getItem('fredi_user_id');
-                if (savedUserId) {
-                    userId = savedUserId;
-                    console.log('💾 user_id получен из localStorage:', userId);
-                }
-            }
-            
-            // 5. Если все еще нет user_id - запрашиваем у пользователя (только для теста)
-            if (!userId) {
-                const testMode = localStorage.getItem('fredi_test_mode');
-                if (testMode === 'true') {
-                    userId = prompt('🧪 ТЕСТОВЫЙ РЕЖИМ\n\nВведите ваш ID пользователя:', '213102077');
-                    if (userId) {
-                        localStorage.setItem('fredi_user_id', userId);
-                        localStorage.setItem('fredi_test_mode', 'true');
-                        console.log('🔧 Установлен тестовый user_id:', userId);
-                    } else {
-                        userId = '213102077'; // тестовый ID
-                        console.warn('⚠️ Используем тестовый user_id:', userId);
-                    }
-                } else {
-                    console.warn('⚠️ user_id не получен, переходим в режим ожидания');
-                    // Показываем сообщение, что нужно открыть через MAX
-                    document.body.innerHTML = `
-                        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; text-align: center; padding: 20px;">
-                            <div style="font-size: 64px; margin-bottom: 20px;">🧠</div>
-                            <h2>Откройте через MAX</h2>
-                            <p style="color: #8e9aa6; margin-top: 10px;">Это мини-приложение работает только внутри мессенджера MAX.<br>Пожалуйста, откройте его через бота.</p>
-                            <button onclick="location.reload()" style="margin-top: 30px; padding: 12px 24px; background: #248bf2; border: none; border-radius: 30px; color: white; font-size: 16px;">↻ Попробовать снова</button>
-                        </div>
-                    `;
-                    return;
-                }
-            }
-            
-            // Сохраняем в localStorage для следующих визитов
-            if (userId && userId !== '213102077') {
-                localStorage.setItem('fredi_user_id', userId);
-            }
-            
-            // Сохраняем глобально для использования во всех скриптах
-            window.maxContext = {
-                user_id: userId,
-                chat_id: chatId,
-                access_token: accessToken
-            };
-            
-            console.log('🎯 Итоговый user_id:', userId);
-            console.log('📦 maxContext:', window.maxContext);
-            
-            // Сообщаем MAX, что приложение загружено
-            if (window.MAX?.WebApp) {
-                window.MAX.WebApp.ready();
-                window.MAX.WebApp.expand();
-            }
-            if (window.Telegram?.WebApp) {
-                window.Telegram.WebApp.ready();
-                window.Telegram.WebApp.expand();
-            }
-            
-            // Можно сразу запросить данные пользователя после загрузки API
-            setTimeout(() => {
-                if (window.api && window.api.getUserFullStatus) {
-                    window.api.getUserFullStatus(userId).then(data => {
-                        console.log('📊 Данные пользователя:', data);
-                        const nameElement = document.getElementById('userNamePlaceholder');
-                        if (nameElement && data.user_name) {
-                            nameElement.textContent = data.user_name;
-                        }
-                        const userNameSpan = document.getElementById('userName');
-                        if (userNameSpan && data.user_name) {
-                            userNameSpan.textContent = data.user_name;
-                        }
-                    }).catch(e => console.warn('Ошибка загрузки данных:', e));
-                }
-            }, 100);
-        })();
-
-        // ===== ПОЛУЧЕНИЕ ТЕМЫ ОТ MAX =====
-        (function() {
-            // Функция применения темы
-            function applyMaxTheme(theme) {
-                console.log('🎨 Применяем тему MAX:', theme);
-                
-                // Устанавливаем CSS переменные из темы MAX
-                const root = document.documentElement;
-                
-                // Основные цвета
-                root.style.setProperty('--max-bg', theme.bg_color || '#0e1621');
-                root.style.setProperty('--max-panel-bg', theme.secondary_bg_color || '#17212b');
-                root.style.setProperty('--max-header-bg', theme.header_bg_color || '#1f2c38');
-                root.style.setProperty('--max-input-bg', theme.input_bg_color || '#1f2c38');
-                root.style.setProperty('--max-text', theme.text_color || '#ffffff');
-                root.style.setProperty('--max-text-secondary', theme.hint_color || '#8e9aa6');
-                root.style.setProperty('--max-border', theme.separator_color || '#0f1b26');
-                root.style.setProperty('--max-hover', theme.section_bg_color || '#2b3b4a');
-                root.style.setProperty('--max-blue', theme.accent_text_color || '#248bf2');
-                
-                // Цвета сообщений
-                root.style.setProperty('--max-message-bot', theme.message_bg_color || '#1f2c38');
-                root.style.setProperty('--max-message-user', theme.message_user_bg_color || '#2b5278');
-                
-                // Кнопки
-                root.style.setProperty('--max-button-primary', theme.button_color || '#248bf2');
-                root.style.setProperty('--max-button-secondary', theme.section_bg_color || '#2b3b4a');
-                
-                // Стеклянный фон
-                root.style.setProperty('--glass-bg', 'rgba(255,255,255,0.05)');
-                root.style.setProperty('--glass-border', 'rgba(255,255,255,0.1)');
-                
-                // Применяем к body
-                document.body.style.backgroundColor = theme.bg_color || '#0e1621';
-                document.body.style.color = theme.text_color || '#ffffff';
-                
-                // Сохраняем тему
-                localStorage.setItem('max_theme', JSON.stringify(theme));
-            }
-            
-            // Пытаемся получить тему от MAX
-            if (window.MAX?.WebApp) {
-                try {
-                    const theme = window.MAX.WebApp.themeParams;
-                    if (theme) {
-                        applyMaxTheme(theme);
-                    }
-                    
-                    // Подписываемся на изменение темы
-                    window.MAX.WebApp.onEvent('themeChanged', function(newTheme) {
-                        applyMaxTheme(newTheme);
-                    });
-                } catch (e) {
-                    console.warn('❌ Ошибка получения темы MAX:', e);
-                }
-            } else {
-                console.log('⚠️ MAX API не доступен, используем тему по умолчанию');
-                // Загружаем сохраненную тему или используем дефолтную
-                try {
-                    const savedTheme = localStorage.getItem('max_theme');
-                    if (savedTheme) {
-                        applyMaxTheme(JSON.parse(savedTheme));
-                    }
-                } catch (e) {
-                    console.warn('❌ Ошибка загрузки темы:', e);
-                }
-            }
-        })();
-    </script>
-
     <div class="app" id="app">
         <!-- ===== ЛЕВАЯ ПАНЕЛЬ (список чатов) ===== -->
         <div class="chats-panel" id="chatsPanel">
@@ -393,22 +292,28 @@
             </div>
 
             <!-- Контейнер для динамической загрузки экранов -->
-            <div id="screenContainer" class="screen-container"></div>
+            <div id="screenContainer" class="screen-container">
+                <!-- Экран загрузки -->
+                <div class="loading-screen">
+                    <div class="loading-spinner">🧠</div>
+                    <div class="loading-text">Загрузка личного кабинета...</div>
+                </div>
+            </div>
         </div>
     </div>
 
     <!-- ===== СКРЫТЫЙ АУДИОПЛЕЕР ДЛЯ ВОСПРОИЗВЕДЕНИЯ ОТВЕТОВ ===== -->
     <audio id="hiddenAudioPlayer" preload="auto"></audio>
 
-    <!-- ===== ТАЙМЕР ЗАПИСИ (будет показываться при записи) ===== -->
+    <!-- ===== ТАЙМЕР ЗАПИСИ ===== -->
     <div id="recordingTimer" class="recording-timer" style="display: none;">0s</div>
     
     <!-- ===== TOAST УВЕДОМЛЕНИЯ ===== -->
     <div id="toastMessage" class="toast-message"></div>
 
-    <!-- ===== ШАБЛОНЫ ЭКРАНОВ ===== -->
+    <!-- ===== ШАБЛОНЫ ЭКРАНОВ (для обратной совместимости) ===== -->
 
-    <!-- Экран 1: Приветствие (две кнопки) -->
+    <!-- Экран 1: Приветствие (для тех, кто не прошел тест) -->
     <template id="onboardingScreen1">
         <div class="onboarding-container">
             <div class="onboarding-content">
@@ -819,479 +724,248 @@
     <script src="/static/script.js"></script>
     <script src="/static/test.js"></script>
     
-    <!-- Потом основной файл приложения -->
-    <script src="/static/app.js"></script>
+    <!-- Потом дашборд и API -->
+    <script src="/static/api.js"></script>
+    <script src="/static/dashboard.js"></script>
     
-    <!-- ===== ДОПОЛНИТЕЛЬНЫЕ СТИЛИ ===== -->
-    <style>
-        /* Стили для финального профиля */
-        .final-profile-container {
-            padding: 20px;
-            overflow-y: auto;
-            height: 100%;
-        }
-        
-        .profile-header {
-            text-align: center;
-            margin-bottom: 24px;
-        }
-        
-        .profile-emoji {
-            font-size: 48px;
-            margin-bottom: 12px;
-        }
-        
-        .profile-title {
-            font-size: 20px;
-            letter-spacing: 0.1em;
-            color: var(--max-blue);
-        }
-        
-        .profile-text {
-            background: var(--glass-bg);
-            border: 1px solid var(--glass-border);
-            border-radius: 16px;
-            padding: 20px;
-            margin-bottom: 24px;
-            font-size: 14px;
-            line-height: 1.6;
-            color: var(--max-text);
-        }
-        
-        .profile-buttons {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-        
-        .profile-buttons .button-row {
-            display: flex;
-            gap: 12px;
-            margin: 0;
-        }
-        
-        .profile-buttons .button-row .onboarding-btn {
-            flex: 1;
-            margin: 0;
-        }
-        
-        /* Стили для экрана вопроса */
-        .ask-question-container {
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            min-height: 100%;
-        }
-        
-        .ask-question-title {
-            font-size: 22px;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-        
-        .ask-question-text {
-            text-align: center;
-            color: var(--max-text-secondary);
-            margin-bottom: 16px;
-        }
-        
-        .voice-hint {
-            text-align: center;
-            margin-bottom: 30px;
-            padding: 12px;
-            background: var(--glass-bg);
-            border-radius: 30px;
-            font-size: 14px;
-        }
-        
-        .question-input-area {
-            margin-bottom: 30px;
-        }
-        
-        .input-group {
-            display: flex;
-            gap: 12px;
-            margin-bottom: 20px;
-        }
-        
-        .question-input {
-            flex: 1;
-            padding: 14px 18px;
-            background: var(--glass-bg);
-            border: 1px solid var(--glass-border);
-            border-radius: 30px;
-            color: var(--max-text);
-            font-size: 16px;
-            outline: none;
-        }
-        
-        .question-input:focus {
-            border-color: var(--max-blue);
-        }
-        
-        .question-submit {
-            width: 48px;
-            height: 48px;
-            border-radius: 50%;
-            background: var(--max-blue);
-            border: none;
-            color: white;
-            font-size: 20px;
-            cursor: pointer;
-        }
-        
-        .voice-input-area {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 12px;
-            padding: 16px;
-            background: var(--glass-bg);
-            border-radius: 20px;
-            margin-top: 8px;
-        }
-        
-        .voice-record-btn {
-            width: 64px;
-            height: 64px;
-            border-radius: 50%;
-            background: var(--max-blue);
-            border: none;
-            color: white;
-            font-size: 32px;
-            cursor: pointer;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-        }
-        
-        .voice-record-btn:hover {
-            transform: scale(1.05);
-        }
-        
-        .voice-record-btn.recording {
-            background: #ff4444;
-            animation: pulse-red 1s infinite;
-        }
-        
-        @keyframes pulse-red {
-            0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255,68,68,0.4); }
-            50% { transform: scale(1.05); box-shadow: 0 0 0 8px rgba(255,68,68,0); }
-        }
-        
-        .voice-status {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 14px;
-            color: #ff4444;
-        }
-        
-        .voice-status-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            background: #ff4444;
-            animation: blink 1s infinite;
-        }
-        
-        @keyframes blink {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.3; }
-        }
-        
-        .voice-hint-text {
-            font-size: 12px;
-            color: var(--max-text-secondary);
-        }
-        
-        .recording-timer {
-            position: fixed;
-            bottom: 100px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0,0,0,0.85);
-            color: white;
-            padding: 8px 20px;
-            border-radius: 30px;
-            font-size: 18px;
-            font-weight: bold;
-            z-index: 1000;
-            backdrop-filter: blur(10px);
-            pointer-events: none;
-        }
-        
-        .voice-input-hint {
-            text-align: center;
-            margin-top: 12px;
-            font-size: 12px;
-            color: var(--max-text-secondary);
-        }
-        
-        /* Стили для выбора целей */
-        .choose-goal-container {
-            padding: 20px;
-            overflow-y: auto;
-            height: 100%;
-        }
-        
-        .choose-goal-title {
-            font-size: 22px;
-            margin-bottom: 16px;
-            text-align: center;
-        }
-        
-        .goal-description {
-            text-align: center;
-            margin-bottom: 20px;
-            color: var(--max-text-secondary);
-        }
-        
-        .profile-badge, .mode-badge {
-            background: var(--glass-bg);
-            border: 1px solid var(--glass-border);
-            border-radius: 30px;
-            padding: 8px 16px;
-            margin-bottom: 12px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .badge-label {
-            font-size: 13px;
-            color: var(--max-text-secondary);
-        }
-        
-        .badge-code {
-            font-size: 14px;
-            font-weight: 600;
-            color: var(--max-blue);
-        }
-        
-        .goals-list {
-            margin: 20px 0;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-        
-        .goal-item {
-            background: var(--glass-bg);
-            border: 1px solid var(--glass-border);
-            border-radius: 20px;
-            padding: 16px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        
-        .goal-item:hover {
-            border-color: var(--max-blue);
-            transform: translateX(4px);
-        }
-        
-        .goal-name {
-            font-weight: 600;
-            margin-bottom: 4px;
-        }
-        
-        .goal-time {
-            font-size: 12px;
-            color: var(--max-text-secondary);
-        }
-        
-        .custom-goal {
-            margin: 16px 0;
-        }
-        
-        /* Стили для выбора режима */
-        .choose-mode-container {
-            padding: 20px;
-            overflow-y: auto;
-            height: 100%;
-        }
-        
-        .choose-mode-title {
-            font-size: 22px;
-            margin-bottom: 16px;
-            text-align: center;
-        }
-        
-        .mode-description {
-            text-align: center;
-            margin-bottom: 20px;
-            color: var(--max-text-secondary);
-        }
-        
-        .mode-cards {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-            margin: 20px 0;
-        }
-        
-        .mode-card {
-            background: var(--glass-bg);
-            border: 1px solid var(--glass-border);
-            border-radius: 20px;
-            padding: 20px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        
-        .mode-card:hover {
-            border-color: var(--max-blue);
-            transform: translateY(-2px);
-        }
-        
-        .mode-card.selected {
-            border-color: var(--max-blue);
-            background: rgba(36, 139, 242, 0.1);
-        }
-        
-        .mode-emoji {
-            font-size: 32px;
-            margin-bottom: 8px;
-        }
-        
-        .mode-name {
-            font-size: 20px;
-            font-weight: 600;
-            margin-bottom: 8px;
-        }
-        
-        .mode-desc {
-            font-size: 14px;
-            color: var(--max-text-secondary);
-            margin-bottom: 12px;
-        }
-        
-        .mode-what {
-            font-size: 12px;
-            color: var(--max-text-secondary);
-            margin-bottom: 12px;
-            padding: 8px;
-            background: rgba(255,255,255,0.05);
-            border-radius: 12px;
-        }
-        
-        .mode-get {
-            font-size: 12px;
-            color: var(--max-text);
-            line-height: 1.5;
-        }
-        
-        /* Стили для мыслей психолога */
-        .thought-loading-container {
-            padding: 40px 20px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            min-height: 100%;
-            text-align: center;
-        }
-        
-        .loading-spinner {
-            font-size: 48px;
-            animation: pulse 1s infinite;
-        }
-        
-        .loading-text {
-            font-size: 18px;
-            margin: 20px 0 8px;
-        }
-        
-        .loading-time {
-            font-size: 14px;
-            color: var(--max-text-secondary);
-            margin-bottom: 8px;
-        }
-        
-        .loading-dots {
-            font-size: 24px;
-            letter-spacing: 4px;
-            animation: dots 1.5s infinite;
-        }
-        
-        @keyframes pulse {
-            0%, 100% { opacity: 0.5; transform: scale(1); }
-            50% { opacity: 1; transform: scale(1.1); }
-        }
-        
-        @keyframes dots {
-            0% { content: "."; }
-            33% { content: ".."; }
-            66% { content: "..."; }
-        }
-        
-        .thought-result-container {
-            padding: 20px;
-            overflow-y: auto;
-            height: 100%;
-        }
-        
-        .thought-header {
-            text-align: center;
-            margin-bottom: 24px;
-        }
-        
-        .thought-emoji {
-            font-size: 48px;
-            margin-bottom: 12px;
-        }
-        
-        .thought-title {
-            font-size: 20px;
-            letter-spacing: 0.1em;
-            color: var(--max-blue);
-        }
-        
-        .thought-text {
-            background: var(--glass-bg);
-            border: 1px solid var(--glass-border);
-            border-radius: 16px;
-            padding: 20px;
-            margin-bottom: 24px;
-            font-size: 14px;
-            line-height: 1.6;
-            color: var(--max-text);
-        }
-        
-        .thought-buttons {
-            display: flex;
-            gap: 12px;
-        }
-        
-        .thought-buttons .onboarding-btn {
-            flex: 1;
-        }
-        
-        @media (max-width: 480px) {
-            .profile-buttons .button-row {
-                flex-direction: column;
+    <!-- ===== ОСНОВНАЯ ИНИЦИАЛИЗАЦИЯ - ТОЧКА ВХОДА В ЛИЧНЫЙ КАБИНЕТ ===== -->
+    <script>
+        // Глобальные переменные
+        window.dashboard = null;
+        window.api = new FrediAPI();
+        
+        // Функция показа экрана загрузки
+        function showLoading() {
+            const container = document.getElementById('screenContainer');
+            if (container) {
+                container.innerHTML = `
+                    <div class="loading-screen">
+                        <div class="loading-spinner">🧠</div>
+                        <div class="loading-text">Загрузка личного кабинета...</div>
+                    </div>
+                `;
+            }
+        }
+        
+        // Функция показа экрана входа (если нет user_id)
+        function showLoginScreen() {
+            const container = document.getElementById('screenContainer');
+            if (container) {
+                container.innerHTML = `
+                    <div class="login-screen">
+                        <div class="login-icon">🔐</div>
+                        <div class="login-title">Личный кабинет Фреди</div>
+                        <div class="login-text">
+                            Для доступа к личному кабинету<br>
+                            необходимо открыть приложение через MAX.
+                        </div>
+                        <button class="login-btn" onclick="location.reload()">
+                            🔄 ПОВТОРИТЬ
+                        </button>
+                    </div>
+                `;
+            }
+        }
+        
+        // Функция инициализации дашборда
+        async function initDashboard() {
+            const userId = window.maxContext?.user_id || localStorage.getItem('fredi_user_id');
+            
+            if (!userId) {
+                console.warn('⚠️ Нет user_id, показываем экран входа');
+                showLoginScreen();
+                return;
             }
             
-            .thought-buttons {
-                flex-direction: column;
-            }
+            console.log('🚀 Загрузка личного кабинета для пользователя:', userId);
+            showLoading();
             
-            .voice-record-btn {
-                width: 56px;
-                height: 56px;
-                font-size: 28px;
-            }
-            
-            .recording-timer {
-                bottom: 80px;
-                padding: 6px 16px;
-                font-size: 16px;
+            try {
+                // Создаем экземпляр дашборда
+                window.dashboard = new FrediDashboard();
+                window.dashboard.userId = userId;
+                
+                // Загружаем данные пользователя
+                await window.dashboard.loadUserData();
+                
+                // Рендерим дашборд
+                window.dashboard.renderDashboard();
+                
+                // Обновляем имя пользователя в левой панели
+                const userNameEl = document.getElementById('userName');
+                if (userNameEl && window.dashboard.userName) {
+                    userNameEl.textContent = window.dashboard.userName;
+                }
+                
+                // Обновляем статус
+                const userStatusEl = document.getElementById('userStatus');
+                if (userStatusEl) {
+                    if (window.dashboard.isTestCompleted) {
+                        userStatusEl.innerHTML = `🧠 ${window.dashboard.profileCode || 'профиль готов'}`;
+                    } else {
+                        userStatusEl.innerHTML = `📝 тест не пройден`;
+                    }
+                }
+                
+                console.log('✅ Личный кабинет загружен');
+                
+            } catch (error) {
+                console.error('❌ Ошибка загрузки личного кабинета:', error);
+                
+                // Показываем экран ошибки
+                const container = document.getElementById('screenContainer');
+                if (container) {
+                    container.innerHTML = `
+                        <div class="dashboard-error">
+                            <div class="error-icon">⚠️</div>
+                            <div class="error-title">Ошибка загрузки</div>
+                            <div class="error-text">
+                                Не удалось загрузить данные профиля.<br>
+                                Пожалуйста, проверьте подключение к интернету.
+                            </div>
+                            <button class="test-required-btn" onclick="location.reload()">
+                                🔄 ПОВТОРИТЬ
+                            </button>
+                        </div>
+                    `;
+                }
             }
         }
-    </style>
+        
+        // ===== ПОЛУЧЕНИЕ USER_ID ОТ MAX =====
+        (function() {
+            let userId = null;
+            let chatId = null;
+            let accessToken = null;
+            
+            // 1. Пробуем получить из URL параметров
+            const urlParams = new URLSearchParams(window.location.search);
+            userId = urlParams.get('user_id');
+            chatId = urlParams.get('chat_id');
+            accessToken = urlParams.get('access_token');
+            
+            if (userId) {
+                console.log('✅ user_id получен из URL:', userId);
+            }
+            
+            // 2. Пробуем получить из MAX WebApp
+            if (!userId && window.MAX?.WebApp?.initDataUnsafe?.user?.id) {
+                userId = window.MAX.WebApp.initDataUnsafe.user.id;
+                console.log('✅ user_id получен из MAX.WebApp:', userId);
+            }
+            
+            // 3. Пробуем получить из Telegram WebApp
+            if (!userId && window.Telegram?.WebApp?.initDataUnsafe?.user?.id) {
+                userId = window.Telegram.WebApp.initDataUnsafe.user.id;
+                console.log('✅ user_id получен из Telegram.WebApp:', userId);
+            }
+            
+            // 4. Пробуем получить из localStorage
+            if (!userId) {
+                const savedUserId = localStorage.getItem('fredi_user_id');
+                if (savedUserId) {
+                    userId = savedUserId;
+                    console.log('💾 user_id получен из localStorage:', userId);
+                }
+            }
+            
+            // 5. Тестовый режим
+            if (!userId) {
+                const testMode = localStorage.getItem('fredi_test_mode');
+                if (testMode === 'true') {
+                    userId = prompt('🧪 ТЕСТОВЫЙ РЕЖИМ\n\nВведите ваш ID пользователя:', '213102077');
+                    if (userId) {
+                        localStorage.setItem('fredi_user_id', userId);
+                        localStorage.setItem('fredi_test_mode', 'true');
+                        console.log('🔧 Установлен тестовый user_id:', userId);
+                    } else {
+                        userId = '213102077';
+                        console.warn('⚠️ Используем тестовый user_id:', userId);
+                    }
+                }
+            }
+            
+            // Сохраняем в localStorage
+            if (userId && userId !== '213102077') {
+                localStorage.setItem('fredi_user_id', userId);
+            }
+            
+            // Сохраняем глобально
+            window.maxContext = {
+                user_id: userId,
+                chat_id: chatId,
+                access_token: accessToken
+            };
+            
+            console.log('🎯 Итоговый user_id:', userId);
+            console.log('📦 maxContext:', window.maxContext);
+            
+            // Сообщаем MAX, что приложение загружено
+            if (window.MAX?.WebApp) {
+                window.MAX.WebApp.ready();
+                window.MAX.WebApp.expand();
+            }
+            if (window.Telegram?.WebApp) {
+                window.Telegram.WebApp.ready();
+                window.Telegram.WebApp.expand();
+            }
+            
+            // Запускаем инициализацию дашборда
+            initDashboard();
+        })();
+
+        // ===== ПОЛУЧЕНИЕ ТЕМЫ ОТ MAX =====
+        (function() {
+            function applyMaxTheme(theme) {
+                console.log('🎨 Применяем тему MAX:', theme);
+                
+                const root = document.documentElement;
+                
+                root.style.setProperty('--max-bg', theme.bg_color || '#0e1621');
+                root.style.setProperty('--max-panel-bg', theme.secondary_bg_color || '#17212b');
+                root.style.setProperty('--max-header-bg', theme.header_bg_color || '#1f2c38');
+                root.style.setProperty('--max-input-bg', theme.input_bg_color || '#1f2c38');
+                root.style.setProperty('--max-text', theme.text_color || '#ffffff');
+                root.style.setProperty('--max-text-secondary', theme.hint_color || '#8e9aa6');
+                root.style.setProperty('--max-border', theme.separator_color || '#0f1b26');
+                root.style.setProperty('--max-hover', theme.section_bg_color || '#2b3b4a');
+                root.style.setProperty('--max-blue', theme.accent_text_color || '#248bf2');
+                root.style.setProperty('--max-message-bot', theme.message_bg_color || '#1f2c38');
+                root.style.setProperty('--max-message-user', theme.message_user_bg_color || '#2b5278');
+                root.style.setProperty('--glass-bg', 'rgba(255,255,255,0.05)');
+                root.style.setProperty('--glass-border', 'rgba(255,255,255,0.1)');
+                
+                document.body.style.backgroundColor = theme.bg_color || '#0e1621';
+                document.body.style.color = theme.text_color || '#ffffff';
+                
+                localStorage.setItem('max_theme', JSON.stringify(theme));
+            }
+            
+            if (window.MAX?.WebApp) {
+                try {
+                    const theme = window.MAX.WebApp.themeParams;
+                    if (theme) {
+                        applyMaxTheme(theme);
+                    }
+                    
+                    window.MAX.WebApp.onEvent('themeChanged', function(newTheme) {
+                        applyMaxTheme(newTheme);
+                    });
+                } catch (e) {
+                    console.warn('❌ Ошибка получения темы MAX:', e);
+                }
+            } else {
+                try {
+                    const savedTheme = localStorage.getItem('max_theme');
+                    if (savedTheme) {
+                        applyMaxTheme(JSON.parse(savedTheme));
+                    }
+                } catch (e) {
+                    console.warn('❌ Ошибка загрузки темы:', e);
+                }
+            }
+        })();
+    </script>
     
     <!-- ===== ИНИЦИАЛИЗАЦИЯ ГОЛОСОВЫХ ФУНКЦИЙ ===== -->
     <script>
@@ -1348,7 +1022,6 @@
                 window.voiceRecorder.isRecording = true;
                 window.voiceRecorder.recordingStartTime = Date.now();
                 
-                // Обновляем UI
                 const voiceBtn = document.getElementById('voiceRecordBtn');
                 if (voiceBtn) {
                     voiceBtn.textContent = '⏹️';
@@ -1360,7 +1033,6 @@
                 
                 startRecordingTimerUI();
                 
-                // Авто-остановка через 30 секунд
                 setTimeout(() => {
                     if (window.voiceRecorder.isRecording) stopVoiceRecording();
                 }, 30000);
@@ -1389,7 +1061,6 @@
             }
         };
         
-        // Запуск таймера записи
         function startRecordingTimerUI() {
             const timerEl = document.getElementById('recordingTimer');
             if (!timerEl) return;
@@ -1407,7 +1078,6 @@
             }, 1000);
         }
         
-        // Остановка таймера записи
         function stopRecordingTimerUI() {
             if (window.voiceRecorder.recordingTimer) {
                 clearInterval(window.voiceRecorder.recordingTimer);
@@ -1417,7 +1087,6 @@
             if (timerEl) timerEl.style.display = 'none';
         }
         
-        // Отправка голоса на сервер
         async function sendVoiceToServer(audioBlob) {
             showToast('Распознаю речь...', 'info');
             
@@ -1438,14 +1107,9 @@
                         showToast(`🎤 Вы сказали: ${result.recognized_text}`, 'success');
                     }
                     if (result.answer) {
-                        // Добавляем ответ в чат
                         const container = document.getElementById('screenContainer');
-                        if (container) {
-                            const answerDiv = document.createElement('div');
-                            answerDiv.className = 'bot-message';
-                            answerDiv.innerHTML = `<div class="message-bot">${result.answer}</div>`;
-                            container.appendChild(answerDiv);
-                            container.scrollTop = container.scrollHeight;
+                        if (container && window.dashboard) {
+                            window.dashboard.showFloatingMessage(result.answer, 'info');
                         }
                     }
                     if (result.audio_url) {
@@ -1464,7 +1128,6 @@
             }
         }
         
-        // Обработчик для голосовой кнопки
         document.addEventListener('DOMContentLoaded', function() {
             const voiceBtn = document.getElementById('voiceRecordBtn');
             if (voiceBtn) {
@@ -1477,7 +1140,6 @@
             }
         });
         
-        // Экспортируем функции в глобальную область
         window.showToast = showToast;
         window.sendVoiceToServer = sendVoiceToServer;
     </script>
